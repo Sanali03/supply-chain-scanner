@@ -1,0 +1,11 @@
+{
+  "name": "test-project",
+  "version": "1.0.0",
+  "description": "Test project for SBOM scanning",
+  "dependencies": {
+    "express": "^4.18.2",
+    "lodash": "^4.17.21",
+    "axios": "^1.6.0",
+    "react": "^18.2.0"
+  }
+}

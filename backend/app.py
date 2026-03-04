@@ -1,25 +1,56 @@
-from flask import Flask, request, jsonify
+import sys
 import os
-
-app = Flask(__name__)
+import shutil
+from PyQt6.QtWidgets import (
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QPushButton,
+    QFileDialog,
+    QLabel
+)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@app.route("/")
-def home():
-    return "Supply Chain Scanner Backend Running"
 
-@app.route("/upload", methods=["POST"])
-def upload_file():
-    if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+class SupplyChainScanner(QWidget):
+    def __init__(self):
+        super().__init__()
 
-    file = request.files["file"]
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(filepath)
+        self.setWindowTitle("Supply Chain Scanner")
+        self.setGeometry(300, 300, 400, 200)
 
-    return jsonify({"message": "File uploaded successfully", "filename": file.filename})
+        layout = QVBoxLayout()
+
+        self.label = QLabel("No file selected")
+        layout.addWidget(self.label)
+
+        self.button = QPushButton("Upload Project")
+        self.button.clicked.connect(self.upload_file)
+        layout.addWidget(self.button)
+
+        self.setLayout(layout)
+
+    def upload_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select File",
+            "",
+            "All Files (*)"
+        )
+
+        if file_path:
+            filename = os.path.basename(file_path)
+            destination = os.path.join(UPLOAD_FOLDER, filename)
+
+            shutil.copy(file_path, destination)
+
+            self.label.setText(f"Uploaded: {filename}")
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app = QApplication(sys.argv)
+    window = SupplyChainScanner()
+    window.show()
+    sys.exit(app.exec())
