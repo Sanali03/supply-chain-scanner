@@ -2,10 +2,11 @@ import requests
 
 OSV_API_URL = "https://api.osv.dev/v1/query"
 
+
 def check_vulnerability(name, version, ecosystem):
     """
     Query OSV API for a specific dependency
-    Returns list of vulnerabilities
+    Returns a list of vulnerabilities
     """
 
     payload = {
@@ -17,7 +18,12 @@ def check_vulnerability(name, version, ecosystem):
     }
 
     try:
-        response = requests.post(OSV_API_URL, json=payload)
+        response = requests.post(OSV_API_URL, json=payload, timeout=10)
+
+        if response.status_code != 200:
+            print("OSV API request failed")
+            return []
+
         data = response.json()
 
         if "vulns" not in data:
@@ -26,13 +32,24 @@ def check_vulnerability(name, version, ecosystem):
         vulnerabilities = []
 
         for vuln in data["vulns"]:
-            vuln_data = {
-                "osv_id": vuln.get("id"),
-                "summary": vuln.get("summary", ""),
-                "severity": extract_severity(vuln)
-            }
 
-            vulnerabilities.append(vuln_data)
+            osv_id = vuln.get("id")
+
+            summary = vuln.get("summary", "")
+
+            cve_id = extract_cve(vuln)
+
+            cvss_score = extract_cvss_score(vuln)
+
+            severity = map_score_to_level(cvss_score) if cvss_score else "UNKNOWN"
+
+            vulnerabilities.append({
+                "osv_id": osv_id,
+                "cve_id": cve_id,
+                "summary": summary,
+                "severity": severity,
+                "cvss_score": cvss_score
+            })
 
         return vulnerabilities
 
@@ -41,23 +58,46 @@ def check_vulnerability(name, version, ecosystem):
         return []
 
 
-def extract_severity(vuln):
+def extract_cve(vuln):
     """
-    Extract severity level from OSV response
+    Extract CVE ID from OSV aliases
+    """
+
+    aliases = vuln.get("aliases", [])
+
+    for alias in aliases:
+        if alias.startswith("CVE"):
+            return alias
+
+    return None
+
+
+def extract_cvss_score(vuln):
+    """
+    Extract CVSS score from severity field
     """
 
     if "severity" not in vuln:
-        return "UNKNOWN"
+        return None
 
     for sev in vuln["severity"]:
-        if sev["type"] == "CVSS_V3":
-            score = float(sev["score"])
-            return map_score_to_level(score)
+        if sev.get("type") == "CVSS_V3":
+            try:
+                return float(sev.get("score"))
+            except:
+                return None
 
-    return "UNKNOWN"
+    return None
 
 
 def map_score_to_level(score):
+    """
+    Convert CVSS score to severity level
+    """
+
+    if score is None:
+        return "UNKNOWN"
+
     if score >= 9:
         return "CRITICAL"
     elif score >= 7:
