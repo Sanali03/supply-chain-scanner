@@ -3,10 +3,16 @@ import os
 
 
 def generate_sbom(project_path):
-    output_file = "sbom.json"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    syft_path = os.path.join(BASE_DIR, "syft.exe")
 
-    syft_path = os.path.join(os.getcwd(), "syft.exe")
+    output_file = os.path.join(BASE_DIR, "sbom.json")
     project_full_path = os.path.abspath(project_path)
+
+    # Check if syft exists
+    if not os.path.exists(syft_path):
+        print("syft.exe not found in backend folder!")
+        return None
 
     command = [
         syft_path,

@@ -1,0 +1,155 @@
+/* ================= GLOBAL ================= */
+QMainWindow {
+    background-color: #0f172a;
+    font-family: "Segoe UI";
+    font-size: 11pt;
+    color: #e2e8f0;
+}
+
+/* ================= SIDEBAR (GLASS) ================= */
+#sidebar {
+    background: rgba(17, 22, 43, 0.85);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Logo */
+#logo {
+    color: #38bdf8;
+    padding: 15px;
+    font-size: 20px;
+}
+
+/* ================= BUTTONS ================= */
+QPushButton {
+    background-color: transparent;
+    color: #e2e8f0;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: left;
+}
+
+/* Hover glow */
+QPushButton:hover {
+    background-color: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+/* Click */
+QPushButton:pressed {
+    background-color: #38bdf8;
+    color: white;
+}
+
+/* Primary button */
+#primaryButton {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:0,
+        stop:0 #3b82f6,
+        stop:1 #38bdf8
+    );
+    color: white;
+    font-weight: bold;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 13pt;
+
+    text-align: center;
+}
+
+#primaryButton:hover {
+    background: #2563eb;
+}
+
+#primaryButton:pressed {
+    background: #1d4ed8;
+}
+
+/* ================= CONTENT ================= */
+#content {
+    background-color: #0f172a;
+}
+
+/* ================= TABLES ================= */
+QTableWidget {
+    background-color: rgba(45, 53, 97, 0.6);
+    border-radius: 10px;
+    gridline-color: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    selection-background-color: #38bdf8;
+}
+
+QHeaderView::section {
+    background-color: rgba(61, 63, 153, 0.9);
+    color: #ffffff;
+    padding: 8px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item {
+    padding: 10px;
+}
+
+/* ================= LABELS ================= */
+QLabel {
+    color: #e2e8f0;
+}
+
+/* ================= CARDS (GLASS EFFECT) ================= */
+QFrame {
+    background: rgba(23, 35, 107, 0.85);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ================= INPUT / TEXT ================= */
+QTextEdit {
+    background-color: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ================= SCROLL ================= */
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+}
+
+QScrollBar::handle:vertical {
+    background: #38bdf8;
+    border-radius: 4px;
+}
+
+/* ===== STAT CARDS ===== */
+#statCard {
+    background: rgb(32, 62, 105);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+#statTitle {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#statValue {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* Upload card */
+#card {
+    background: rgba(45, 53, 97, 0.6);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+/* ================= LOADING SPINNER ================= */
+#loader {
+    border: 4px solid rgba(255,255,255,0.1);
+    border-top: 4px solid #38bdf8;
+    border-radius: 50%;
+}

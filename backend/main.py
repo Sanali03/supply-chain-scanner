@@ -1,6 +1,6 @@
-from sbom_generator import generate_sbom
-from sbom_parser import parse_sbom
-from db_service import save_project_and_dependencies
+from backend.sbom_generator import generate_sbom
+from backend.sbom_parser import parse_sbom
+from backend.db_service import save_project_and_dependencies
 
 
 def main():
