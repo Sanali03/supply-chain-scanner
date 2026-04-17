@@ -3,57 +3,33 @@ QMainWindow {
     background-color: #0f172a;
     font-family: "Segoe UI";
     font-size: 11pt;
-    color: #e2e8f0;
+    color: #e5e7eb;
 }
 
-/* ================= SIDEBAR (GLASS) ================= */
+
+/* ================= SIDEBAR ================= */
 #sidebar {
-    background: rgba(17, 22, 43, 0.85);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    background: #1e293b;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* Logo */
 #logo {
     color: #38bdf8;
-    padding: 15px;
+    padding: 18px 10px;
     font-size: 20px;
+    font-weight: 700;
 }
 
-/* ================= BUTTONS ================= */
-QPushButton {
-    background-color: transparent;
-    color: #e2e8f0;
-    padding: 12px;
-    border-radius: 8px;
-    text-align: left;
-}
 
-/* Hover glow */
-QPushButton:hover {
-    background-color: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
-}
-
-/* Click */
-QPushButton:pressed {
-    background-color: #38bdf8;
-    color: white;
-}
-
-/* Primary button */
+/* ================= PRIMARY BUTTON ================= */
 #primaryButton {
-    background: qlineargradient(
-        x1:0, y1:0, x2:1, y2:0,
-        stop:0 #3b82f6,
-        stop:1 #38bdf8
-    );
+    background: #3b82f6;
     color: white;
     font-weight: bold;
     padding: 14px;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 13pt;
-
-    text-align: center;
 }
 
 #primaryButton:hover {
@@ -64,52 +40,162 @@ QPushButton:pressed {
     background: #1d4ed8;
 }
 
+
+/* ================= PROJECT DROPDOWN ================= */
+QComboBox#projectSelector {
+    background-color: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 11pt;
+}
+
+QComboBox#projectSelector:hover {
+    border: 1px solid #38bdf8;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 25px;
+}
+
+QComboBox::down-arrow {
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #38bdf8;
+    margin-right: 8px;
+}
+
+/* Dropdown list */
+QComboBox QAbstractItemView {
+    background-color: #1e293b;
+    color: #e5e7eb;
+    border: 1px solid rgba(255,255,255,0.08);
+    selection-background-color: rgba(56, 189, 248, 0.25);
+    selection-color: #38bdf8;
+    outline: none;
+}
+
+/* Selected item */
+QComboBox QAbstractItemView::item:selected {
+    background-color: rgba(56, 189, 248, 0.25);
+    color: #38bdf8;
+    border-left: 3px solid #38bdf8;
+}
+
+
+/* ================= NAV BUTTONS ================= */
+QPushButton#navButton {
+    background-color: transparent;
+    color: #cbd5f5;
+    padding: 12px 14px;
+    border-radius: 10px;
+    text-align: left;
+    margin-bottom: 6px;
+    font-size: 11pt;
+}
+
+/* Hover */
+QPushButton#navButton:hover {
+    background-color: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+}
+
+/* Active */
+QPushButton#navButton[active="true"] {
+    background-color: rgba(56, 189, 248, 0.22);
+    color: #38bdf8;
+    font-weight: 600;
+    border-left: 4px solid #38bdf8;
+    padding-left: 10px;
+}
+
+
 /* ================= CONTENT ================= */
 #content {
     background-color: #0f172a;
 }
 
-/* ================= TABLES ================= */
-QTableWidget {
-    background-color: rgba(45, 53, 97, 0.6);
-    border-radius: 10px;
-    gridline-color: rgba(255,255,255,0.05);
-    color: #e2e8f0;
-    selection-background-color: #38bdf8;
-}
 
-QHeaderView::section {
-    background-color: rgba(61, 63, 153, 0.9);
-    color: #ffffff;
-    padding: 8px;
-    border: none;
-    font-weight: bold;
-}
-
-QTableWidget::item {
-    padding: 10px;
-}
-
-/* ================= LABELS ================= */
-QLabel {
-    color: #e2e8f0;
-}
-
-/* ================= CARDS (GLASS EFFECT) ================= */
-QFrame {
-    background: rgba(23, 35, 107, 0.85);
-    border-radius: 12px;
+/* ================= CARDS ================= */
+QFrame, #card {
+    background: #1f2937;
+    border-radius: 14px;
     border: 1px solid rgba(255,255,255,0.05);
 }
 
-/* ================= INPUT / TEXT ================= */
+QFrame:hover {
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+
+/* ================= STAT CARDS ================= */
+#statCard {
+    background: #1f2937;
+    border-radius: 14px;
+    padding: 18px;
+    border: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+#statCard:hover {
+    border: 1px solid #38bdf8;
+}
+
+#statTitle {
+    color: #f9fafb;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#statValue {
+    font-size: 30px;
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+
+/* ================= TABLES ================= */
+QTableWidget {
+    background-color: #1f2937;
+    border-radius: 12px;
+    gridline-color: rgba(255,255,255,0.05);
+    color: #e5e7eb;
+    font-size: 13px;
+    selection-background-color: rgba(56, 189, 248, 0.35);
+}
+
+QTableWidget::item {
+    padding: 12px;
+}
+
+QHeaderView::section {
+    background-color: #374151;
+    color: #38bdf8;
+    padding: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+/* ================= LABELS ================= */
+QLabel {
+    color: #e5e7eb;
+    font-size: 18px;
+}
+
+
+/* ================= INPUT ================= */
 QTextEdit {
-    background-color: rgba(255,255,255,0.05);
-    color: #e2e8f0;
+    background-color: #1f2937;
+    color: #e5e7eb;
     border-radius: 8px;
     padding: 8px;
     border: 1px solid rgba(255,255,255,0.08);
 }
+
 
 /* ================= SCROLL ================= */
 QScrollBar:vertical {
@@ -118,38 +204,18 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background: #38bdf8;
+    background: rgba(56, 189, 248, 0.5);
     border-radius: 4px;
 }
 
-/* ===== STAT CARDS ===== */
-#statCard {
-    background: rgb(32, 62, 105);
-    border-radius: 12px;
-    padding: 15px;
+QScrollBar::handle:vertical:hover {
+    background: #38bdf8;
 }
 
-#statTitle {
-    color: #ffffff;
-    font-size: 18px;
-    font-weight: bold;
-}
 
-#statValue {
-    font-size: 22px;
-    font-weight: bold;
-}
-
-/* Upload card */
-#card {
-    background: rgba(45, 53, 97, 0.6);
-    border-radius: 12px;
-    padding: 15px;
-}
-
-/* ================= LOADING SPINNER ================= */
+/* ================= LOADER ================= */
 #loader {
-    border: 4px solid rgba(255,255,255,0.1);
+    border: 4px solid rgba(255,255,255,0.08);
     border-top: 4px solid #38bdf8;
     border-radius: 50%;
 }

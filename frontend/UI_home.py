@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFileDialog, QFrame, QTableWidget, QTableWidgetItem
+    QPushButton, QFileDialog, QFrame,
+    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -21,7 +22,7 @@ class HomePage(QWidget):
         upload_layout = QVBoxLayout()
 
         title = QLabel("Upload Project for Scan")
-        title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
 
         self.btn = QPushButton("Browse Folder")
         self.btn.setObjectName("primaryButton")
@@ -33,7 +34,7 @@ class HomePage(QWidget):
         upload.setLayout(upload_layout)
         self.main_layout.addWidget(upload)
 
-        # ================= STATS SECTION =================
+        # ================= STATS =================
         stats_layout = QHBoxLayout()
         stats_layout.setSpacing(15)
 
@@ -52,9 +53,23 @@ class HomePage(QWidget):
         # ================= TABLE =================
         self.table = QTableWidget(0, 3)
         self.table.setObjectName("dataTable")
-        self.table.setHorizontalHeaderLabels(["Project", "Dependencies", "Vulnerabilities"])
 
-        self.main_layout.addWidget(self.table)
+        self.table.setHorizontalHeaderLabels([
+            "Project", "Dependencies", "Vulnerabilities"
+        ])
+
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+
+        self.table.verticalHeader().setDefaultSectionSize(50)
+        self.table.verticalHeader().setVisible(False)
+
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        self.main_layout.addWidget(self.table, stretch=1)
 
         self.setLayout(self.main_layout)
 
@@ -68,9 +83,11 @@ class HomePage(QWidget):
 
         title_label = QLabel(title)
         title_label.setObjectName("statTitle")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         value_label = QLabel("0")
         value_label.setObjectName("statValue")
+        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         value_label.setStyleSheet(f"color: {color};")
 
         layout.addWidget(title_label)
@@ -81,37 +98,61 @@ class HomePage(QWidget):
         return {"frame": frame, "label": value_label}
 
     # ================= UPDATE DATA =================
-    def update_summary(self, dependencies, vulnerabilities, history):
+    def update_summary(self, dependencies, vulnerabilities, full_history, current_project_name):
+
+        # ===== COUNTS =====
         dep_count = len(dependencies)
         vuln_count = len(vulnerabilities)
-        scan_count = len(history)
 
-        # Risk logic
-        if vuln_count == 0:
-            risk = "LOW"
-            color = "#22c55e"
-        elif vuln_count < 5:
-            risk = "MEDIUM"
-            color = "#f59e0b"
-        else:
-            risk = "HIGH"
+        # ✅ TOTAL scans (ALL projects)
+        total_scans = len(full_history)
+
+        # ✅ FILTER scans of CURRENT project
+        project_scans = [
+            h for h in full_history if h["project"] == current_project_name
+        ]
+
+        # ✅ Latest scan for risk
+        latest_scan = project_scans[0] if project_scans else {}
+
+        risk = latest_scan.get("status", "UNKNOWN").upper()
+
+        # ===== COLOR =====
+        if risk == "CRITICAL":
+            color = "#dc2626"
+        elif risk == "HIGH":
             color = "#ef4444"
+        elif risk == "MEDIUM":
+            color = "#f59e0b"
+        elif risk == "LOW":
+            color = "#22c55e"
+        else:
+            color = "#94a3b8"
 
-        # Update values
+        # ===== UPDATE STATS =====
         self.dep_value["label"].setText(str(dep_count))
         self.vuln_value["label"].setText(str(vuln_count))
-        self.scan_value["label"].setText(str(scan_count))
+        self.scan_value["label"].setText(str(total_scans))
+
         self.risk_value["label"].setText(risk)
         self.risk_value["label"].setStyleSheet(f"color: {color};")
 
-        # Update table
+        # ===== UPDATE TABLE =====
         self.table.setRowCount(0)
 
-        for row, scan in enumerate(history):
+        for row, scan in enumerate(project_scans):
             self.table.insertRow(row)
-            self.table.setItem(row, 0, QTableWidgetItem(scan.get("project", "")))
-            self.table.setItem(row, 1, QTableWidgetItem(str(scan.get("deps", 0))))
-            self.table.setItem(row, 2, QTableWidgetItem(str(scan.get("vulns", 0))))
+
+            project_item = QTableWidgetItem(scan.get("project", ""))
+            deps_item = QTableWidgetItem(str(scan.get("deps", 0)))
+            vulns_item = QTableWidgetItem(str(scan.get("vulns", 0)))
+
+            deps_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            vulns_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            self.table.setItem(row, 0, project_item)
+            self.table.setItem(row, 1, deps_item)
+            self.table.setItem(row, 2, vulns_item)
 
     # ================= FILE PICKER =================
     def open_folder_dialog(self):

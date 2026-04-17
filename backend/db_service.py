@@ -41,7 +41,7 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
 
         dependency_id = cursor.lastrowid
 
-        # Get vulnerabilities from OSV
+        # Fetch vulnerabilities
         vulnerabilities = check_vulnerability(
             dep.get("name"),
             dep.get("version"),
@@ -61,16 +61,15 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
                 vuln.get("severity"),
                 vuln.get("cvss_score"),
                 vuln.get("summary"),
-                None  # (Optional: you can extract published_date later)
+                None
             ))
 
             total_vulnerabilities += 1
 
-            # Track highest CVSS
             if vuln.get("cvss_score") and vuln["cvss_score"] > highest_cvss:
                 highest_cvss = vuln["cvss_score"]
 
-    # Calculate overall risk
+    # Calculate risk
     risk_score, status = calculate_risk(total_vulnerabilities, highest_cvss)
 
     # Insert scan result
@@ -90,71 +89,101 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
     conn.close()
 
     print("Scan saved successfully!")
+    print(f"Project ID: {project_id}")
     print(f"Dependencies: {len(dependencies)}")
     print(f"Vulnerabilities: {total_vulnerabilities}")
     print(f"Risk Score: {risk_score} | Status: {status}")
 
 
 # ==============================
-# FETCH DATA FOR DASHBOARD
+# FETCH DEPENDENCIES (FILTERED)
 # ==============================
 
-def get_dependencies():
+def get_dependencies(project_id=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT name, version, ecosystem
-        FROM dependencies
-        ORDER BY id DESC
-    """)
+    query = """
+        SELECT 
+            d.id,
+            d.name,
+            d.version,
+            d.ecosystem,
+            sr.status
+        FROM dependencies d
+        JOIN scan_results sr ON d.project_id = sr.project_id
+    """
 
+    params = ()
+
+    if project_id:
+        query += " WHERE d.project_id = ?"
+        params = (project_id,)
+
+    query += " ORDER BY d.id DESC"
+
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
 
-    dependencies = []
-
-    for row in rows:
-        dependencies.append({
+    return [
+        {
             "name": row["name"],
             "version": row["version"],
             "ecosystem": row["ecosystem"],
-            "risk": "N/A"  # Optional: enhance later
-        })
+            "risk": row["status"] or "UNKNOWN"
+        }
+        for row in rows
+    ]
 
-    return dependencies
 
+# ==============================
+# FETCH VULNERABILITIES (FILTERED)
+# ==============================
 
-def get_vulnerabilities():
+def get_vulnerabilities(project_id=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    query = """
         SELECT 
+            v.id,
             v.cve_id,
             v.severity,
             v.cvss_score,
+            v.description,
             d.name AS package
         FROM vulnerabilities v
         JOIN dependencies d ON v.dependency_id = d.id
-        ORDER BY v.id DESC
-    """)
+    """
 
+    params = ()
+
+    if project_id:
+        query += " WHERE d.project_id = ?"
+        params = (project_id,)
+
+    query += " ORDER BY v.id DESC"
+
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
 
-    vulnerabilities = []
-
-    for row in rows:
-        vulnerabilities.append({
-            "cve": row["cve_id"] if row["cve_id"] else "N/A",
-            "severity": row["severity"],
+    return [
+        {
+            "cve": row["cve_id"] or "N/A",
+            "severity": row["severity"] or "UNKNOWN",
             "cvss": row["cvss_score"],
-            "package": row["package"]
-        })
+            "package": row["package"],
+            "description": row["description"] or ""
+        }
+        for row in rows
+    ]
 
-    return vulnerabilities
 
+# ==============================
+# FETCH SCAN HISTORY
+# ==============================
 
 def get_scan_history():
     conn = get_connection()
@@ -162,10 +191,11 @@ def get_scan_history():
 
     cursor.execute("""
         SELECT 
-            p.scan_date AS date,
-            p.name AS project,
-            sr.total_dependencies AS deps,
-            sr.total_vulnerabilities AS vulns,
+            p.id AS project_id,
+            p.scan_date,
+            p.name,
+            sr.total_dependencies,
+            sr.total_vulnerabilities,
             sr.risk_score,
             sr.status
         FROM projects p
@@ -176,23 +206,22 @@ def get_scan_history():
     rows = cursor.fetchall()
     conn.close()
 
-    history = []
-
-    for row in rows:
-        history.append({
-            "date": row["date"],
-            "project": row["project"],
-            "deps": row["deps"],
-            "vulns": row["vulns"],
+    return [
+        {
+            "id": row["project_id"],
+            "date": row["scan_date"],
+            "project": row["name"],
+            "deps": row["total_dependencies"],
+            "vulns": row["total_vulnerabilities"],
             "risk_score": row["risk_score"],
             "status": row["status"]
-        })
-
-    return history
+        }
+        for row in rows
+    ]
 
 
 # ==============================
-# OPTIONAL: CLEAR DATABASE
+# CLEAR DATABASE
 # ==============================
 
 def clear_all_data():
