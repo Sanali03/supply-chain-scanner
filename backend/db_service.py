@@ -5,10 +5,10 @@ from backend.risk_calculator import calculate_risk
 
 
 # ==============================
-# SAVE SCAN DATA
+# SAVE SCAN DATA (FIXED PROGRESS FLOW)
 # ==============================
 
-def save_project_and_dependencies(project_name, project_path, dependencies):
+def save_project_and_dependencies(project_name, project_path, dependencies, progress_callback=None):
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -26,6 +26,42 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
     total_vulnerabilities = 0
     highest_cvss = 0
 
+    total_deps = len(dependencies)
+
+    # ==============================
+    # PHASE 1: Vulnerability Processing (0% → 70%)
+    # ==============================
+    processed = 0
+
+    for dep in dependencies:
+
+        # Fetch vulnerabilities
+        vulnerabilities = check_vulnerability(
+            dep.get("name"),
+            dep.get("version"),
+            dep.get("ecosystem")
+        )
+
+        dep["__vulns__"] = vulnerabilities  # store for later DB insert
+
+        for vuln in vulnerabilities:
+            total_vulnerabilities += 1
+
+            if vuln.get("cvss_score") and vuln["cvss_score"] > highest_cvss:
+                highest_cvss = vuln["cvss_score"]
+
+        processed += 1
+
+        # 🔥 Smooth progress (0 → 70)
+        if progress_callback:
+            percent = int((processed / max(1, total_deps)) * 70)
+            progress_callback(percent)
+
+    # ==============================
+    # PHASE 2: DB INSERTS (70% → 95%)
+    # ==============================
+    processed = 0
+
     for dep in dependencies:
 
         # Insert dependency
@@ -41,14 +77,8 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
 
         dependency_id = cursor.lastrowid
 
-        # Fetch vulnerabilities
-        vulnerabilities = check_vulnerability(
-            dep.get("name"),
-            dep.get("version"),
-            dep.get("ecosystem")
-        )
-
-        for vuln in vulnerabilities:
+        # Insert vulnerabilities
+        for vuln in dep.get("__vulns__", []):
 
             cursor.execute("""
                 INSERT INTO vulnerabilities
@@ -64,22 +94,27 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
                 None
             ))
 
-            total_vulnerabilities += 1
+        processed += 1
 
-            if vuln.get("cvss_score") and vuln["cvss_score"] > highest_cvss:
-                highest_cvss = vuln["cvss_score"]
+        # 🔥 Smooth progress (70 → 95)
+        if progress_callback:
+            percent = 70 + int((processed / max(1, total_deps)) * 25)
+            progress_callback(percent)
+
+    # ==============================
+    # FINAL STEP (95% → 100%)
+    # ==============================
 
     # Calculate risk
     risk_score, status = calculate_risk(total_vulnerabilities, highest_cvss)
 
-    # Insert scan result
     cursor.execute("""
         INSERT INTO scan_results
         (project_id, total_dependencies, total_vulnerabilities, risk_score, status)
         VALUES (?, ?, ?, ?, ?)
     """, (
         project_id,
-        len(dependencies),
+        total_deps,
         total_vulnerabilities,
         risk_score,
         status
@@ -88,15 +123,19 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
     conn.commit()
     conn.close()
 
+    # ✅ Final 100%
+    if progress_callback:
+        progress_callback(100)
+
     print("Scan saved successfully!")
     print(f"Project ID: {project_id}")
-    print(f"Dependencies: {len(dependencies)}")
+    print(f"Dependencies: {total_deps}")
     print(f"Vulnerabilities: {total_vulnerabilities}")
     print(f"Risk Score: {risk_score} | Status: {status}")
 
 
 # ==============================
-# FETCH DEPENDENCIES (FILTERED)
+# FETCH DEPENDENCIES (UNCHANGED)
 # ==============================
 
 def get_dependencies(project_id=None):
@@ -138,7 +177,7 @@ def get_dependencies(project_id=None):
 
 
 # ==============================
-# FETCH VULNERABILITIES (FILTERED)
+# FETCH VULNERABILITIES (UNCHANGED)
 # ==============================
 
 def get_vulnerabilities(project_id=None):
@@ -182,7 +221,7 @@ def get_vulnerabilities(project_id=None):
 
 
 # ==============================
-# FETCH SCAN HISTORY
+# FETCH SCAN HISTORY (UNCHANGED)
 # ==============================
 
 def get_scan_history():
@@ -221,7 +260,7 @@ def get_scan_history():
 
 
 # ==============================
-# CLEAR DATABASE
+# CLEAR DATABASE (UNCHANGED)
 # ==============================
 
 def clear_all_data():

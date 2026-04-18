@@ -35,6 +35,7 @@ from backend.db_service import (
 
 class ScanWorker(QThread):
     finished = pyqtSignal()
+    progress = pyqtSignal(int)
 
     def __init__(self, project_name, project_path):
         super().__init__()
@@ -43,7 +44,11 @@ class ScanWorker(QThread):
 
     def run(self):
         try:
-            run_scan(self.project_name, self.project_path)
+            run_scan(
+                self.project_name,
+                self.project_path,
+                progress_callback=self.progress.emit
+            )
         except Exception as e:
             print(f"❌ Scan error: {e}")
         self.finished.emit()
@@ -77,28 +82,23 @@ class Dashboard(QMainWindow):
         sidebar_layout.setContentsMargins(10, 20, 10, 20)
         sidebar_layout.setSpacing(10)
 
-        # Logo
         logo = QLabel("Supply Chain\nScanner")
         logo.setObjectName("logo")
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         sidebar_layout.addWidget(logo)
 
-        # Upload Button
         scan_btn = QPushButton("📁 Upload Project")
         scan_btn.setObjectName("primaryButton")
         scan_btn.clicked.connect(self.upload_and_scan)
         sidebar_layout.addWidget(scan_btn)
 
-        # Project Dropdown
         self.project_selector = QComboBox()
         self.project_selector.setObjectName("projectSelector")
         self.project_selector.currentTextChanged.connect(self.on_project_change)
         sidebar_layout.addWidget(self.project_selector)
 
-        # ================= NAVIGATION =================
         self.nav_buttons = []
-
         nav_buttons = [
             ("Home", 0),
             ("Dependencies", 1),
@@ -126,14 +126,37 @@ class Dashboard(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.tabBar().hide()
 
-        # Loader
+        # ================= LOADER (FIXED LAYOUT) =================
         self.loader = QLabel()
         self.loader.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        movie = QMovie("spinner.gif")
-        self.loader.setMovie(movie)
-        movie.start()
-        self.loader.setVisible(False)
+        spinner_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "assets", "spinner.gif")
+        )
+
+        self.movie = QMovie(spinner_path)
+
+        if not self.movie.isValid():
+            print("❌ Spinner GIF not found or invalid")
+
+        self.loader.setMovie(self.movie)
+        self.loader.setFixedSize(100, 100)
+        self.loader.setScaledContents(True)
+
+        self.progress_label = QLabel("Scanning... 0%")
+        self.progress_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.progress_label.setStyleSheet("color: white; font-size: 16px;")
+
+        # 🔥 NEW: CENTERED CONTAINER (spinner above text)
+        self.loader_container = QWidget()
+        loader_layout = QVBoxLayout(self.loader_container)
+        loader_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        loader_layout.setSpacing(10)
+
+        loader_layout.addWidget(self.loader, alignment=Qt.AlignmentFlag.AlignCenter)
+        loader_layout.addWidget(self.progress_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.loader_container.hide()
 
         # Tabs
         self.home_tab = HomePage()
@@ -151,19 +174,14 @@ class Dashboard(QMainWindow):
         self.tabs.addTab(self.history_tab, "Scan History")
 
         content_layout.addWidget(self.tabs)
-        content_layout.addWidget(self.loader)
+        content_layout.addWidget(self.loader_container)  # ✅ ONLY CHANGE HERE
 
         main_layout.addWidget(content)
         self.setCentralWidget(main_container)
 
-        # Load projects AFTER UI ready
         self.load_projects()
-
-        # Default tab
         self.switch_tab(0)
 
-    # ============================
-    # LOAD PROJECTS
     # ============================
 
     def load_projects(self):
@@ -179,7 +197,7 @@ class Dashboard(QMainWindow):
 
             label = f"{scan['project']} ({short_time})"
 
-            if label not in self.project_map:  # prevent duplicates
+            if label not in self.project_map:
                 self.project_selector.addItem(label)
                 self.project_map[label] = scan["id"]
 
@@ -191,20 +209,11 @@ class Dashboard(QMainWindow):
             self.project_selector.setCurrentText(first)
             self.refresh_data()
 
-    # ============================
-    # PROJECT CHANGE
-    # ============================
-
     def on_project_change(self, text):
         if not text:
             return
-
         self.current_project_id = self.project_map.get(text)
         self.refresh_data()
-
-    # ============================
-    # NAVIGATION
-    # ============================
 
     def switch_tab(self, index):
         self.tabs.setCurrentIndex(index)
@@ -213,10 +222,6 @@ class Dashboard(QMainWindow):
             btn.setProperty("active", i == index)
             btn.style().unpolish(btn)
             btn.style().polish(btn)
-
-    # ============================
-    # REFRESH DATA
-    # ============================
 
     def refresh_data(self):
         try:
@@ -227,10 +232,8 @@ class Dashboard(QMainWindow):
             vulnerabilities = get_vulnerabilities(self.current_project_id)
             history = get_scan_history()
 
-            # Get current project name
             current_project_name = self.project_selector.currentText().split(" (")[0]
 
-            # Update UI
             self.dep_tab.update_data(dependencies)
             self.vuln_tab.update_data(vulnerabilities)
             self.chart_tab.update_chart(dependencies, vulnerabilities)
@@ -243,19 +246,14 @@ class Dashboard(QMainWindow):
                 current_project_name
             )
 
-            # ✅ NEW: Update REPORT TAB
             self.report_tab.refresh_report(
                 self.current_project_id,
                 current_project_name
             )
 
-            print(f"✅ Showing project: {current_project_name}")
-
         except Exception as e:
             print(f"❌ Refresh error: {e}")
 
-    # ============================
-    # SCAN
     # ============================
 
     def upload_and_scan(self):
@@ -266,22 +264,30 @@ class Dashboard(QMainWindow):
 
         project_name = os.path.basename(folder)
 
-        self.loader.setVisible(True)
-        self.tabs.setVisible(False)
+        self.tabs.hide()
+
+        # ✅ SHOW CENTERED LOADER
+        self.loader_container.show()
+        self.movie.start()
+        self.progress_label.setText("Scanning... 0%")
+
+        QApplication.processEvents()
 
         self.worker = ScanWorker(project_name, folder)
+        self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.on_scan_complete)
         self.worker.start()
 
-    def on_scan_complete(self):
-        self.loader.setVisible(False)
-        self.tabs.setVisible(True)
+    def update_progress(self, value):
+        self.progress_label.setText(f"Scanning... {value}%")
 
+    def on_scan_complete(self):
+        self.movie.stop()
+        self.loader_container.hide()
+        self.tabs.show()
         self.load_projects()
 
 
-# ============================
-# RUN APP
 # ============================
 
 if __name__ == "__main__":
