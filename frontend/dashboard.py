@@ -52,7 +52,7 @@ class ScanWorker(QThread):
                 progress_callback=self.progress.emit
             )
         except Exception as e:
-            print(f"❌ Scan error: {e}")
+            print(f" Scan error: {e}")
         self.finished.emit()
 
 
@@ -89,13 +89,13 @@ class Dashboard(QMainWindow):
         logo.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         sidebar_layout.addWidget(logo)
 
-        scan_btn = QPushButton("📁 Upload Project")
+        scan_btn = QPushButton("Upload Project")
         scan_btn.setObjectName("primaryButton")
         scan_btn.clicked.connect(self.upload_and_scan)
         sidebar_layout.addWidget(scan_btn)
 
         # RESCAN BUTTON
-        rescan_btn = QPushButton("🔄 Re-Scan Project")
+        rescan_btn = QPushButton(" Re-Scan Project")
         rescan_btn.setObjectName("primaryButton")
         rescan_btn.clicked.connect(self.rescan_project)
         sidebar_layout.addWidget(rescan_btn)
@@ -151,7 +151,7 @@ class Dashboard(QMainWindow):
         self.movie = QMovie(spinner_path)
 
         if not self.movie.isValid():
-            print("❌ Spinner GIF not found or invalid")
+            print(" Spinner GIF not found or invalid")
 
         self.loader.setMovie(self.movie)
         self.loader.setFixedSize(100, 100)
@@ -202,7 +202,7 @@ class Dashboard(QMainWindow):
 
     def delete_selected_project(self):
         if not self.current_project_id:
-            print("❌ No project selected")
+            print(" No project selected")
             return
 
         reply = QMessageBox.question(
@@ -215,19 +215,19 @@ class Dashboard(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             delete_project(self.current_project_id)
             self.load_projects()
-            print("✅ Project deleted")
+            print(" Project deleted")
 
     # ============================
 
     def rescan_project(self):
         if not self.current_project_id:
-            print("❌ No project selected for rescan")
+            print("No project selected for rescan")
             return
 
         project_path = get_project_path(self.current_project_id)
 
         if not project_path or not os.path.exists(project_path):
-            print("❌ Project path not found")
+            print(" Project path not found")
             return
 
         project_name = self.project_selector.currentText().split(" (")[0]
@@ -317,7 +317,7 @@ class Dashboard(QMainWindow):
 
 
         except Exception as e:
-            print(f"❌ Refresh error: {e}")
+            print(f" Refresh error: {e}")
 
     # ============================
 
@@ -360,7 +360,7 @@ if __name__ == "__main__":
         with open("style.qss", "r") as f:
             app.setStyleSheet(f.read())
     except:
-        print("⚠️ style.qss not found")
+        print(" style.qss not found")
 
     window = Dashboard()
     window.show()
