@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from PyQt6.QtWidgets import (
     QMainWindow, QTabWidget, QApplication, QWidget,
     QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
-    QFileDialog, QComboBox
+    QFileDialog, QComboBox, QMessageBox   # ✅ NEW
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QMovie
@@ -25,7 +25,9 @@ from backend.backend_service import run_scan
 from backend.db_service import (
     get_dependencies,
     get_vulnerabilities,
-    get_scan_history
+    get_scan_history,
+    get_project_path,
+    delete_project   
 )
 
 
@@ -68,7 +70,6 @@ class Dashboard(QMainWindow):
         self.current_project_id = None
         self.project_map = {}
 
-        # ================= MAIN LAYOUT =================
         main_container = QWidget()
         main_layout = QHBoxLayout(main_container)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -93,6 +94,12 @@ class Dashboard(QMainWindow):
         scan_btn.clicked.connect(self.upload_and_scan)
         sidebar_layout.addWidget(scan_btn)
 
+        # RESCAN BUTTON
+        rescan_btn = QPushButton("🔄 Re-Scan Project")
+        rescan_btn.setObjectName("primaryButton")
+        rescan_btn.clicked.connect(self.rescan_project)
+        sidebar_layout.addWidget(rescan_btn)
+
         self.project_selector = QComboBox()
         self.project_selector.setObjectName("projectSelector")
         self.project_selector.currentTextChanged.connect(self.on_project_change)
@@ -116,6 +123,13 @@ class Dashboard(QMainWindow):
             self.nav_buttons.append(btn)
 
         sidebar_layout.addStretch()
+
+        # DELETE BUTTON (BOTTOM)
+        delete_btn = QPushButton("🗑 Delete Project")
+        delete_btn.setObjectName("primaryButton")
+        delete_btn.clicked.connect(self.delete_selected_project)
+        sidebar_layout.addWidget(delete_btn)
+
         main_layout.addWidget(sidebar)
 
         # ================= CONTENT =================
@@ -126,7 +140,7 @@ class Dashboard(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.tabBar().hide()
 
-        # ================= LOADER (FIXED LAYOUT) =================
+        # ================= LOADER =================
         self.loader = QLabel()
         self.loader.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -147,14 +161,14 @@ class Dashboard(QMainWindow):
         self.progress_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.progress_label.setStyleSheet("color: white; font-size: 16px;")
 
-        # 🔥 NEW: CENTERED CONTAINER (spinner above text)
+        # CENTERED LOADER
         self.loader_container = QWidget()
         loader_layout = QVBoxLayout(self.loader_container)
         loader_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         loader_layout.setSpacing(10)
 
-        loader_layout.addWidget(self.loader, alignment=Qt.AlignmentFlag.AlignCenter)
-        loader_layout.addWidget(self.progress_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        loader_layout.addWidget(self.loader)
+        loader_layout.addWidget(self.progress_label)
 
         self.loader_container.hide()
 
@@ -174,13 +188,61 @@ class Dashboard(QMainWindow):
         self.tabs.addTab(self.history_tab, "Scan History")
 
         content_layout.addWidget(self.tabs)
-        content_layout.addWidget(self.loader_container)  # ✅ ONLY CHANGE HERE
+        content_layout.addWidget(self.loader_container)
 
         main_layout.addWidget(content)
         self.setCentralWidget(main_container)
 
         self.load_projects()
         self.switch_tab(0)
+
+    # ============================
+    # DELETE PROJECT
+    # ============================
+
+    def delete_selected_project(self):
+        if not self.current_project_id:
+            print("❌ No project selected")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            "Are you sure you want to delete this project?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            delete_project(self.current_project_id)
+            self.load_projects()
+            print("✅ Project deleted")
+
+    # ============================
+
+    def rescan_project(self):
+        if not self.current_project_id:
+            print("❌ No project selected for rescan")
+            return
+
+        project_path = get_project_path(self.current_project_id)
+
+        if not project_path or not os.path.exists(project_path):
+            print("❌ Project path not found")
+            return
+
+        project_name = self.project_selector.currentText().split(" (")[0]
+
+        self.tabs.hide()
+        self.loader_container.show()
+        self.movie.start()
+        self.progress_label.setText("Re-scanning... 0%")
+
+        QApplication.processEvents()
+
+        self.worker = ScanWorker(project_name, project_path)
+        self.worker.progress.connect(self.update_progress)
+        self.worker.finished.connect(self.on_scan_complete)
+        self.worker.start()
 
     # ============================
 
@@ -246,10 +308,13 @@ class Dashboard(QMainWindow):
                 current_project_name
             )
 
+            self.home_tab.trend_chart.update_chart(history)
+
             self.report_tab.refresh_report(
                 self.current_project_id,
                 current_project_name
             )
+
 
         except Exception as e:
             print(f"❌ Refresh error: {e}")
@@ -265,8 +330,6 @@ class Dashboard(QMainWindow):
         project_name = os.path.basename(folder)
 
         self.tabs.hide()
-
-        # ✅ SHOW CENTERED LOADER
         self.loader_container.show()
         self.movie.start()
         self.progress_label.setText("Scanning... 0%")

@@ -135,7 +135,7 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
 
 
 # ==============================
-# FETCH DEPENDENCIES (UNCHANGED)
+# FETCH DEPENDENCIES
 # ==============================
 
 def get_dependencies(project_id=None):
@@ -177,7 +177,7 @@ def get_dependencies(project_id=None):
 
 
 # ==============================
-# FETCH VULNERABILITIES (UNCHANGED)
+# FETCH VULNERABILITIES
 # ==============================
 
 def get_vulnerabilities(project_id=None):
@@ -221,7 +221,7 @@ def get_vulnerabilities(project_id=None):
 
 
 # ==============================
-# FETCH SCAN HISTORY (UNCHANGED)
+# FETCH SCAN HISTORY 
 # ==============================
 
 def get_scan_history():
@@ -258,9 +258,61 @@ def get_scan_history():
         for row in rows
     ]
 
+# ==============================
+# GET PROJECT PATH
+# ==============================
+
+def get_project_path(project_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT project_path FROM projects WHERE id = ?
+    """, (project_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return row["project_path"] if row else None
 
 # ==============================
-# CLEAR DATABASE (UNCHANGED)
+# DELETE SINGLE PROJECT (NEW)
+# ==============================
+
+def delete_project(project_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Delete vulnerabilities first (FK dependency)
+    cursor.execute("""
+        DELETE FROM vulnerabilities
+        WHERE dependency_id IN (
+            SELECT id FROM dependencies WHERE project_id = ?
+        )
+    """, (project_id,))
+
+    # Delete dependencies
+    cursor.execute("""
+        DELETE FROM dependencies WHERE project_id = ?
+    """, (project_id,))
+
+    # Delete scan results
+    cursor.execute("""
+        DELETE FROM scan_results WHERE project_id = ?
+    """, (project_id,))
+
+    # Delete project
+    cursor.execute("""
+        DELETE FROM projects WHERE id = ?
+    """, (project_id,))
+
+    conn.commit()
+    conn.close()
+
+    print(f"✅ Project {project_id} deleted")
+
+# ==============================
+# CLEAR DATABASE
 # ==============================
 
 def clear_all_data():

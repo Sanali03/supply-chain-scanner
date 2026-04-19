@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+from UI_trend_chart import TrendChart
 
 
 class HomePage(QWidget):
@@ -69,7 +70,36 @@ class HomePage(QWidget):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
-        self.main_layout.addWidget(self.table, stretch=1)
+        # ================= TREND CHART =================
+        self.trend_chart = TrendChart()
+
+        # Wrap chart in card (better UI)
+        chart_card = QFrame()
+        chart_card.setObjectName("card")
+
+        chart_layout = QVBoxLayout()
+        chart_layout.setSpacing(10)
+
+        chart_title = QLabel("Scan Trend")
+        chart_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        chart_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        chart_layout.addWidget(chart_title)
+        chart_layout.addWidget(self.trend_chart)
+
+        chart_card.setLayout(chart_layout)
+
+        # ================= TABLE + CHART SIDE BY SIDE =================
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(15)
+
+        # Table (left)
+        bottom_layout.addWidget(self.table, stretch=2)
+
+        # Chart (right)
+        bottom_layout.addWidget(chart_card, stretch=3)
+
+        self.main_layout.addLayout(bottom_layout)
 
         self.setLayout(self.main_layout)
 
@@ -100,24 +130,19 @@ class HomePage(QWidget):
     # ================= UPDATE DATA =================
     def update_summary(self, dependencies, vulnerabilities, full_history, current_project_name):
 
-        # ===== COUNTS =====
         dep_count = len(dependencies)
         vuln_count = len(vulnerabilities)
 
-        # ✅ TOTAL scans (ALL projects)
         total_scans = len(full_history)
 
-        # ✅ FILTER scans of CURRENT project
         project_scans = [
             h for h in full_history if h["project"] == current_project_name
         ]
 
-        # ✅ Latest scan for risk
         latest_scan = project_scans[0] if project_scans else {}
 
         risk = latest_scan.get("status", "UNKNOWN").upper()
 
-        # ===== COLOR =====
         if risk == "CRITICAL":
             color = "#dc2626"
         elif risk == "HIGH":
@@ -129,7 +154,7 @@ class HomePage(QWidget):
         else:
             color = "#94a3b8"
 
-        # ===== UPDATE STATS =====
+        # Update stats
         self.dep_value["label"].setText(str(dep_count))
         self.vuln_value["label"].setText(str(vuln_count))
         self.scan_value["label"].setText(str(total_scans))
@@ -137,7 +162,7 @@ class HomePage(QWidget):
         self.risk_value["label"].setText(risk)
         self.risk_value["label"].setStyleSheet(f"color: {color};")
 
-        # ===== UPDATE TABLE =====
+        # Update table
         self.table.setRowCount(0)
 
         for row, scan in enumerate(project_scans):
@@ -153,6 +178,9 @@ class HomePage(QWidget):
             self.table.setItem(row, 0, project_item)
             self.table.setItem(row, 1, deps_item)
             self.table.setItem(row, 2, vulns_item)
+
+        # Update chart
+        self.trend_chart.update_chart(project_scans)
 
     # ================= FILE PICKER =================
     def open_folder_dialog(self):
