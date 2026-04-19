@@ -1,15 +1,34 @@
-def calculate_risk(total_vulnerabilities, highest_cvss):
+def calculate_risk(vulnerabilities):
+    """
+    Calculate overall project risk based on vulnerability severities
+    """
 
-    if total_vulnerabilities == 0:
+    if not vulnerabilities:
         return 0.0, "LOW"
 
-    if highest_cvss >= 9:
-        return 9.0, "CRITICAL"
+    priority = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 
-    if highest_cvss >= 7:
-        return 8.0, "HIGH"
+    max_level = 0
 
-    if highest_cvss >= 4:
-        return 6.0, "MEDIUM"
+    for v in vulnerabilities:
+        sev = v.get("severity", "LOW")
 
-    return 3.0, "LOW"
+        # Normalize MODERATE → MEDIUM
+        if sev == "MODERATE":
+            sev = "MEDIUM"
+
+        if sev in priority:
+            level = priority.index(sev)
+            max_level = max(max_level, level)
+
+    final_severity = priority[max_level]
+
+    # Optional numeric score mapping
+    score_map = {
+        "LOW": 3.0,
+        "MEDIUM": 6.0,
+        "HIGH": 8.0,
+        "CRITICAL": 9.5
+    }
+
+    return score_map[final_severity], final_severity

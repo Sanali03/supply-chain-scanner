@@ -81,14 +81,8 @@ class ReportViewer(QWidget):
             low = sum(1 for v in vulnerabilities if v.get("severity", "").upper() == "LOW")
 
             # ===== Risk =====
-            risk_score = (critical * 3 + high * 2 + medium) / max(1, vuln_count)
-
-            if risk_score >= 2:
-                overall_risk = "HIGH"
-            elif risk_score >= 1:
-                overall_risk = "MEDIUM"
-            else:
-                overall_risk = "LOW"
+            overall_risk = latest_scan.get("status", "UNKNOWN")
+            risk_score = latest_scan.get("risk_score", 0)
 
             # ===== Trend =====
             trend = "N/A"
@@ -136,20 +130,20 @@ class ReportViewer(QWidget):
             <h3>Project: <span style="color:#22c55e;">{self.report_data["project"]}</span></h3>
             <hr>
 
-            <h3>📊 Scan Summary</h3>
+            <h3>Scan Summary</h3>
             <ul>
                 <li><b>Total Scans:</b> {scan_count}</li>
                 <li><b>Total Dependencies:</b> {dep_count}</li>
                 <li><b>Total Vulnerabilities:</b> {vuln_count}</li>
             </ul>
 
-            <h3>🕒 Latest Scan</h3>
+            <h3>Latest Scan</h3>
             <ul>
                 <li><b>Date:</b> {self.report_data["latest_date"]}</li>
                 <li><b>Risk:</b> {self.report_data["latest_risk"]}</li>
             </ul>
 
-            <h3>⚠️ Severity Breakdown</h3>
+            <h3>Severity Breakdown</h3>
             <ul>
                 <li style="color:#ef4444;">CRITICAL: {critical}</li>
                 <li style="color:#f97316;">HIGH: {high}</li>
@@ -157,20 +151,20 @@ class ReportViewer(QWidget):
                 <li style="color:#22c55e;">LOW: {low}</li>
             </ul>
 
-            <h3>📉 Risk Analysis</h3>
+            <h3>Risk Analysis</h3>
             <ul>
                 <li><b>Risk Score:</b> {risk_score:.2f}</li>
                 <li><b>Overall Risk:</b> {overall_risk}</li>
                 <li><b>Trend:</b> {trend}</li>
             </ul>
 
-            <h3>💡 Key Insights</h3>
+            <h3>Key Insights</h3>
             <ul>
                 <li>Most vulnerable package: <b>{top_package}</b></li>
                 <li>More dependencies → larger attack surface</li>
             </ul>
 
-            <h3>✅ Recommendations</h3>
+            <h3>Recommendations</h3>
             <ul>
                 <li>Patch CRITICAL & HIGH vulnerabilities immediately</li>
                 <li>Keep dependencies updated</li>
