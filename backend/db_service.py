@@ -28,6 +28,8 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
 
     total_deps = len(dependencies)
 
+    all_vulnerabilities = []
+
     # ==============================
     # PHASE 1: Vulnerability Processing (0% → 70%)
     # ==============================
@@ -47,8 +49,7 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
         for vuln in vulnerabilities:
             total_vulnerabilities += 1
 
-            if vuln.get("cvss_score") and vuln["cvss_score"] > highest_cvss:
-                highest_cvss = vuln["cvss_score"]
+            all_vulnerabilities.append(vuln)
 
         processed += 1
 
@@ -106,7 +107,7 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
     # ==============================
 
     # Calculate risk
-    risk_score, status = calculate_risk(total_vulnerabilities, highest_cvss)
+    risk_score, status = calculate_risk(all_vulnerabilities)
 
     cursor.execute("""
         INSERT INTO scan_results

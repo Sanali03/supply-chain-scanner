@@ -41,7 +41,12 @@ def check_vulnerability(name, version, ecosystem):
 
             cvss_score = extract_cvss_score(vuln)
 
-            severity = map_score_to_level(cvss_score) if cvss_score else "UNKNOWN"
+            if cvss_score is not None:
+                severity = map_score_to_level(cvss_score)
+            else:
+                severity = extract_fallback_severity(vuln)
+
+            print(osv_id, cvss_score, severity)
 
             vulnerabilities.append({
                 "osv_id": osv_id,
@@ -74,21 +79,42 @@ def extract_cve(vuln):
 
 def extract_cvss_score(vuln):
     """
-    Extract CVSS score from severity field
+    Extract highest CVSS score from all available severity entries
     """
 
-    if "severity" not in vuln:
-        return None
+    scores = []
 
-    for sev in vuln["severity"]:
-        if sev.get("type") == "CVSS_V3":
+    if "severity" in vuln:
+        for sev in vuln["severity"]:
             try:
-                return float(sev.get("score"))
+                score = float(sev.get("score"))
+                scores.append(score)
             except:
-                return None
+                pass
 
-    return None
+    return max(scores) if scores else None
 
+def extract_fallback_severity(vuln):
+    """
+    Try to extract severity when CVSS is missing
+    """
+
+    # 1. Try database_specific field
+    db = vuln.get("database_specific", {})
+    sev = db.get("severity")
+
+    if sev:
+        return sev.upper()
+
+    # 2. Try to infer from ID (quick heuristic)
+    vuln_id = vuln.get("id", "").lower()
+
+    if "critical" in vuln_id:
+        return "CRITICAL"
+    if "high" in vuln_id:
+        return "HIGH"
+
+    return "LOW"   # fallback default
 
 def map_score_to_level(score):
     """
