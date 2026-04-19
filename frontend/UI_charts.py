@@ -4,69 +4,60 @@ import matplotlib.pyplot as plt
 
 
 class RiskChart(QWidget):
-    def __init__(self, dependencies):
+    def __init__(self, dependencies=None, vulnerabilities=None):
         super().__init__()
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
-        # Create figure and canvas
+        # Create figure
         self.figure, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.figure)
 
         self.layout.addWidget(self.canvas)
 
         # Initial plot
-        self.update_chart(dependencies)
+        self.update_chart(dependencies or [], vulnerabilities or [])
 
     # ============================
-    # UPDATE CHART (FIXED)
+    # UPDATE CHART (FINAL VERSION)
     # ============================
-
-    def update_chart(self, dependencies):
+    def update_chart(self, dependencies, vulnerabilities):
         self.ax.clear()
 
-        # Risk categories
-        risk_counts = {
-            "Critical": 0,
-            "High": 0,
-            "Medium": 0,
-            "Low": 0,
-            "Informational": 0
-        }
+        # ============================
+        # CALCULATE SAFE vs VULNERABLE
+        # ============================
+        total_deps = len(dependencies)
 
-        # Count risks safely
-        for dep in dependencies:
-            risk = dep.get("risk", "Low")
-            risk_counts[risk] = risk_counts.get(risk, 0) + 1
+        # Get unique vulnerable packages
+        vulnerable_packages = set()
 
-        labels = []
-        sizes = []
-        colors = []
+        for vuln in vulnerabilities:
+            pkg = vuln.get("package")
+            if pkg:
+                vulnerable_packages.add(pkg)
 
-        # 🎨 COLOR MAPPING (THIS IS WHERE COLORS GO)
-        color_map = {
-            "Critical": "#e74c3c",     # red
-            "High": "#e67e22",         # orange
-            "Medium": "#f1c40f",       # yellow
-            "Low": "#2ecc71",          # green
-            "Informational": "#3498db" # blue
-        }
+        vulnerable_count = len(vulnerable_packages)
+        safe_count = max(total_deps - vulnerable_count, 0)
 
-        for key, value in risk_counts.items():
-            if value > 0:
-                labels.append(key)
-                sizes.append(value)
-                colors.append(color_map.get(key, "#95a5a6"))
+        # ============================
+        # DATA FOR CHART
+        # ============================
+        labels = ["Safe", "Vulnerable"]
+        sizes = [safe_count, vulnerable_count]
+        colors = ["#22c55e", "#ef4444"]  # green / red
 
-        # Handle empty data
-        if not sizes:
+        # ============================
+        # HANDLE EMPTY DATA
+        # ============================
+        if total_deps == 0:
             self.ax.text(
                 0.5, 0.5,
                 "No Data Available",
                 ha='center',
                 va='center',
-                fontsize=12,
+                fontsize=14,
                 color="white"
             )
         else:
@@ -74,13 +65,22 @@ class RiskChart(QWidget):
                 sizes,
                 labels=labels,
                 autopct="%1.1f%%",
-                colors=colors
+                colors=colors,
+                startangle=90,
+                textprops={"color": "white", "fontsize": 11}
             )
 
-        # Dark theme background
-        self.figure.patch.set_facecolor("#1a1f3a")
-        self.ax.set_facecolor("#1a1f3a")
+        # ============================
+        # STYLING
+        # ============================
+        self.figure.patch.set_facecolor("#1e293b")
+        self.ax.set_facecolor("#1e293b")
 
-        self.ax.set_title("Dependency Risk Distribution", color="white")
+        self.ax.set_title(
+            "Dependency Security Overview",
+            color="white",
+            fontsize=14,
+            fontweight="bold"
+        )
 
         self.canvas.draw()

@@ -5,10 +5,10 @@ from backend.risk_calculator import calculate_risk
 
 
 # ==============================
-# SAVE SCAN DATA
+# SAVE SCAN DATA (FIXED PROGRESS FLOW)
 # ==============================
 
-def save_project_and_dependencies(project_name, project_path, dependencies):
+def save_project_and_dependencies(project_name, project_path, dependencies, progress_callback=None):
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -26,6 +26,42 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
     total_vulnerabilities = 0
     highest_cvss = 0
 
+    total_deps = len(dependencies)
+
+    # ==============================
+    # PHASE 1: Vulnerability Processing (0% → 70%)
+    # ==============================
+    processed = 0
+
+    for dep in dependencies:
+
+        # Fetch vulnerabilities
+        vulnerabilities = check_vulnerability(
+            dep.get("name"),
+            dep.get("version"),
+            dep.get("ecosystem")
+        )
+
+        dep["__vulns__"] = vulnerabilities  # store for later DB insert
+
+        for vuln in vulnerabilities:
+            total_vulnerabilities += 1
+
+            if vuln.get("cvss_score") and vuln["cvss_score"] > highest_cvss:
+                highest_cvss = vuln["cvss_score"]
+
+        processed += 1
+
+        # 🔥 Smooth progress (0 → 70)
+        if progress_callback:
+            percent = int((processed / max(1, total_deps)) * 70)
+            progress_callback(percent)
+
+    # ==============================
+    # PHASE 2: DB INSERTS (70% → 95%)
+    # ==============================
+    processed = 0
+
     for dep in dependencies:
 
         # Insert dependency
@@ -41,14 +77,8 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
 
         dependency_id = cursor.lastrowid
 
-        # Get vulnerabilities from OSV
-        vulnerabilities = check_vulnerability(
-            dep.get("name"),
-            dep.get("version"),
-            dep.get("ecosystem")
-        )
-
-        for vuln in vulnerabilities:
+        # Insert vulnerabilities
+        for vuln in dep.get("__vulns__", []):
 
             cursor.execute("""
                 INSERT INTO vulnerabilities
@@ -61,26 +91,30 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
                 vuln.get("severity"),
                 vuln.get("cvss_score"),
                 vuln.get("summary"),
-                None  # (Optional: you can extract published_date later)
+                None
             ))
 
-            total_vulnerabilities += 1
+        processed += 1
 
-            # Track highest CVSS
-            if vuln.get("cvss_score") and vuln["cvss_score"] > highest_cvss:
-                highest_cvss = vuln["cvss_score"]
+        # 🔥 Smooth progress (70 → 95)
+        if progress_callback:
+            percent = 70 + int((processed / max(1, total_deps)) * 25)
+            progress_callback(percent)
 
-    # Calculate overall risk
+    # ==============================
+    # FINAL STEP (95% → 100%)
+    # ==============================
+
+    # Calculate risk
     risk_score, status = calculate_risk(total_vulnerabilities, highest_cvss)
 
-    # Insert scan result
     cursor.execute("""
         INSERT INTO scan_results
         (project_id, total_dependencies, total_vulnerabilities, risk_score, status)
         VALUES (?, ?, ?, ?, ?)
     """, (
         project_id,
-        len(dependencies),
+        total_deps,
         total_vulnerabilities,
         risk_score,
         status
@@ -89,72 +123,106 @@ def save_project_and_dependencies(project_name, project_path, dependencies):
     conn.commit()
     conn.close()
 
+    # ✅ Final 100%
+    if progress_callback:
+        progress_callback(100)
+
     print("Scan saved successfully!")
-    print(f"Dependencies: {len(dependencies)}")
+    print(f"Project ID: {project_id}")
+    print(f"Dependencies: {total_deps}")
     print(f"Vulnerabilities: {total_vulnerabilities}")
     print(f"Risk Score: {risk_score} | Status: {status}")
 
 
 # ==============================
-# FETCH DATA FOR DASHBOARD
+# FETCH DEPENDENCIES (UNCHANGED)
 # ==============================
 
-def get_dependencies():
+def get_dependencies(project_id=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT name, version, ecosystem
-        FROM dependencies
-        ORDER BY id DESC
-    """)
+    query = """
+        SELECT 
+            d.id,
+            d.name,
+            d.version,
+            d.ecosystem,
+            sr.status
+        FROM dependencies d
+        JOIN scan_results sr ON d.project_id = sr.project_id
+    """
 
+    params = ()
+
+    if project_id:
+        query += " WHERE d.project_id = ?"
+        params = (project_id,)
+
+    query += " ORDER BY d.id DESC"
+
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
 
-    dependencies = []
-
-    for row in rows:
-        dependencies.append({
+    return [
+        {
             "name": row["name"],
             "version": row["version"],
             "ecosystem": row["ecosystem"],
-            "risk": "N/A"  # Optional: enhance later
-        })
+            "risk": row["status"] or "UNKNOWN"
+        }
+        for row in rows
+    ]
 
-    return dependencies
 
+# ==============================
+# FETCH VULNERABILITIES (UNCHANGED)
+# ==============================
 
-def get_vulnerabilities():
+def get_vulnerabilities(project_id=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    query = """
         SELECT 
+            v.id,
             v.cve_id,
             v.severity,
             v.cvss_score,
+            v.description,
             d.name AS package
         FROM vulnerabilities v
         JOIN dependencies d ON v.dependency_id = d.id
-        ORDER BY v.id DESC
-    """)
+    """
 
+    params = ()
+
+    if project_id:
+        query += " WHERE d.project_id = ?"
+        params = (project_id,)
+
+    query += " ORDER BY v.id DESC"
+
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
 
-    vulnerabilities = []
-
-    for row in rows:
-        vulnerabilities.append({
-            "cve": row["cve_id"] if row["cve_id"] else "N/A",
-            "severity": row["severity"],
+    return [
+        {
+            "cve": row["cve_id"] or "N/A",
+            "severity": row["severity"] or "UNKNOWN",
             "cvss": row["cvss_score"],
-            "package": row["package"]
-        })
+            "package": row["package"],
+            "description": row["description"] or ""
+        }
+        for row in rows
+    ]
 
-    return vulnerabilities
 
+# ==============================
+# FETCH SCAN HISTORY (UNCHANGED)
+# ==============================
 
 def get_scan_history():
     conn = get_connection()
@@ -162,10 +230,11 @@ def get_scan_history():
 
     cursor.execute("""
         SELECT 
-            p.scan_date AS date,
-            p.name AS project,
-            sr.total_dependencies AS deps,
-            sr.total_vulnerabilities AS vulns,
+            p.id AS project_id,
+            p.scan_date,
+            p.name,
+            sr.total_dependencies,
+            sr.total_vulnerabilities,
             sr.risk_score,
             sr.status
         FROM projects p
@@ -176,23 +245,22 @@ def get_scan_history():
     rows = cursor.fetchall()
     conn.close()
 
-    history = []
-
-    for row in rows:
-        history.append({
-            "date": row["date"],
-            "project": row["project"],
-            "deps": row["deps"],
-            "vulns": row["vulns"],
+    return [
+        {
+            "id": row["project_id"],
+            "date": row["scan_date"],
+            "project": row["name"],
+            "deps": row["total_dependencies"],
+            "vulns": row["total_vulnerabilities"],
             "risk_score": row["risk_score"],
             "status": row["status"]
-        })
-
-    return history
+        }
+        for row in rows
+    ]
 
 
 # ==============================
-# OPTIONAL: CLEAR DATABASE
+# CLEAR DATABASE (UNCHANGED)
 # ==============================
 
 def clear_all_data():

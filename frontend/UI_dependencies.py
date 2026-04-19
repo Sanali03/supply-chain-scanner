@@ -1,5 +1,8 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QLabel
-from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QTableWidget,
+    QTableWidgetItem, QLabel, QHeaderView, QSizePolicy
+)
+from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
 
 
@@ -9,20 +12,51 @@ class DependencyTable(QWidget):
 
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
 
+        # ===== Title =====
         title = QLabel("Dependencies")
-        title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
         layout.addWidget(title)
 
+        # ===== Table =====
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Name", "Version", "Risk", "Vendor"])
+        self.table.setHorizontalHeaderLabels([
+            "Name", "Version", "Risk", "Vendor"
+        ])
 
-        layout.addWidget(self.table)
+        # ===== UI IMPROVEMENTS =====
+        self.table.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
+
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+
+        # Bigger rows
+        self.table.verticalHeader().setDefaultSectionSize(50)
+
+        # Clean look
+        self.table.verticalHeader().setVisible(False)
+
+        # Stretch columns nicely
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        # Slightly bigger font for readability
+        self.table.setFont(QFont("Segoe UI", 11))
+
+        layout.addWidget(self.table, stretch=1)
         self.setLayout(layout)
 
         self.update_data(dependencies)
 
+    # ============================
+    # UPDATE DATA
+    # ============================
     def update_data(self, dependencies):
         self.table.setRowCount(0)
 
@@ -30,24 +64,41 @@ class DependencyTable(QWidget):
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            self.table.setItem(row, 0, QTableWidgetItem(dep.get("name", "")))
-            self.table.setItem(row, 1, QTableWidgetItem(dep.get("version", "")))
+            # ===== Name =====
+            name_item = QTableWidgetItem(dep.get("name", ""))
+            name_item.setFont(QFont("Segoe UI", 11))
+            self.table.setItem(row, 0, name_item)
 
-            risk = dep.get("risk", "LOW")
+            # ===== Version =====
+            version_item = QTableWidgetItem(dep.get("version", ""))
+            self.table.setItem(row, 1, version_item)
+
+            # ===== Risk =====
+            risk = dep.get("risk", "UNKNOWN")
+            if not risk or risk == "N/A":
+                risk = "UNKNOWN"
+
+            risk = risk.upper()
             risk_item = QTableWidgetItem(risk)
 
-            if risk.upper() == "CRITICAL":
-                risk_item.setForeground(Qt.GlobalColor.red)
-            elif risk.upper() == "HIGH":
-                risk_item.setForeground(Qt.GlobalColor.darkRed)
-            elif risk.upper() == "MEDIUM":
-                risk_item.setForeground(Qt.GlobalColor.darkYellow)
-            else:
-                risk_item.setForeground(Qt.GlobalColor.darkGreen)
-            
-            risk_item.setForeground(Qt.GlobalColor.white)
+            # 🎨 Color coding
+            color_map = {
+                "CRITICAL": "#dc2626",
+                "HIGH": "#ef4444",
+                "MEDIUM": "#f59e0b",
+                "LOW": "#22c55e",
+                "UNKNOWN": "#94a3b8"
+            }
+
+            risk_item.setForeground(QColor(color_map.get(risk, "#94a3b8")))
+            risk_item.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+
+            # Center align risk
+            risk_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
             self.table.setItem(row, 2, risk_item)
-            self.table.setItem(row, 3, QTableWidgetItem(dep.get("vendor", "PyPI")))
 
-        self.table.resizeColumnsToContents()
+            # ===== Vendor =====
+            vendor = dep.get("vendor") or dep.get("ecosystem", "Unknown")
+            vendor_item = QTableWidgetItem(vendor)
+            self.table.setItem(row, 3, vendor_item)
