@@ -5,6 +5,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+from UI_policy_status import PolicyDetailsWidget
+
 
 
 class HomePage(QWidget):
@@ -49,6 +51,17 @@ class HomePage(QWidget):
         stats_layout.addWidget(self.risk_value["frame"])
 
         self.main_layout.addLayout(stats_layout)
+
+        # ================= POLICY STATUS =================
+        policy_frame = QFrame()
+        policy_frame.setObjectName("card")
+        policy_layout = QVBoxLayout(policy_frame)
+
+        self.policy_widget = PolicyDetailsWidget()
+        policy_layout.addWidget(self.policy_widget)
+
+        self.main_layout.addWidget(policy_frame)
+
 
         # ================= TABLE =================
         self.table = QTableWidget(0, 3)
@@ -98,8 +111,9 @@ class HomePage(QWidget):
         return {"frame": frame, "label": value_label}
 
     # ================= UPDATE DATA =================
-    def update_summary(self, dependencies, vulnerabilities, full_history, current_project_name):
+   # ...existing code...
 
+    def update_summary(self, dependencies, vulnerabilities, full_history, current_project_name):
         # ===== COUNTS =====
         dep_count = len(dependencies)
         vuln_count = len(vulnerabilities)
@@ -154,6 +168,15 @@ class HomePage(QWidget):
             self.table.setItem(row, 1, deps_item)
             self.table.setItem(row, 2, vulns_item)
 
+        # ===== POLICY STATUS =====
+        if latest_scan and "policy_enforcement" in latest_scan:
+            self.policy_widget.update_policy_info(latest_scan["policy_enforcement"])
+        else:
+            self.policy_widget.update_policy_info({
+                "status": "pending-scan",
+                "reason": "Run a scan to evaluate security policies."
+            })
+
     # ================= FILE PICKER =================
     def open_folder_dialog(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Project Folder")
@@ -161,4 +184,4 @@ class HomePage(QWidget):
         if folder:
             parent = self.parent()
             if hasattr(parent, "upload_and_scan"):
-                parent.upload_and_scan()
+                parent.upload_and_scan()  
