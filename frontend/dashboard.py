@@ -175,6 +175,7 @@ class Dashboard(QMainWindow):
 
         # Tabs
         self.home_tab = HomePage()
+        self.home_tab.upload_requested.connect(self.upload_and_scan)
         self.dep_tab = DependencyTable([])
         self.vuln_tab = VulnerabilityTable([])
         self.chart_tab = RiskChart([], [])

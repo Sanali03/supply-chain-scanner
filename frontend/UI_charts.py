@@ -155,7 +155,7 @@ class RiskChart(QWidget):
         # Remove spines (clean look)
         for spine in self.ax2.spines.values():
             spine.set_visible(False)
-
+    
         # Subtle grid (x-axis only)
         self.ax2.grid(axis='x', linestyle='--', alpha=0.2)
 
@@ -177,32 +177,19 @@ class RiskChart(QWidget):
     def plot_risk_card(self, vulnerabilities):
         self.ax3.clear()
 
-        severity_priority = {
-            "LOW": 1,
-            "MEDIUM": 2,
-            "HIGH": 3,
-            "CRITICAL": 4
+        from backend.risk_calculator import calculate_risk
+
+        # ✅ Use your REAL backend logic
+        score, status = calculate_risk(vulnerabilities)
+
+        color_map = {
+            "LOW": "#22c55e",
+            "MEDIUM": "#f59e0b",
+            "HIGH": "#f97316",
+            "CRITICAL": "#dc2626"
         }
 
-        max_level = 0
-
-        for v in vulnerabilities:
-            sev = v.get("severity", "LOW").upper()
-
-            if sev == "MODERATE":
-                sev = "MEDIUM"
-
-            max_level = max(max_level, severity_priority.get(sev, 1))
-
-        # MAP BACK TO LABEL + SCORE
-        label_map = {
-            1: ("LOW", "#22c55e", 3.0),
-            2: ("MEDIUM", "#f59e0b", 6.0),
-            3: ("HIGH", "#f97316", 8.0),
-            4: ("CRITICAL", "#dc2626", 9.0)
-        }
-
-        label, color, score = label_map.get(max_level, ("LOW", "#22c55e", 3.0))
+        color = color_map.get(status, "#22c55e")
 
         # DRAW CARD
         self.ax3.axis("off")
@@ -219,7 +206,7 @@ class RiskChart(QWidget):
 
         self.ax3.text(
             0.5, 0.4,
-            f"{label} RISK",
+            f"{status} RISK",
             ha="center",
             va="center",
             fontsize=16,

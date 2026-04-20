@@ -6,11 +6,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from UI_policy_status import PolicyDetailsWidget
-
 from UI_trend_chart import TrendChart
+from PyQt6.QtCore import Qt, pyqtSignal
 
 
 class HomePage(QWidget):
+    
+    upload_requested = pyqtSignal()
+
     def __init__(self):
         super().__init__()
 
@@ -53,7 +56,15 @@ class HomePage(QWidget):
 
         self.main_layout.addLayout(stats_layout)
 
-        # ================= POLICY STATUS =================
+        # ================= MAIN CONTENT (FIXED) =================
+        content_layout = QHBoxLayout()
+        content_layout.setSpacing(15)
+
+        # ===== LEFT SIDE (Policy + Table) =====
+        left_layout = QVBoxLayout()
+        left_layout.setSpacing(15)
+
+        # ---- POLICY ----
         policy_frame = QFrame()
         policy_frame.setObjectName("card")
         policy_layout = QVBoxLayout(policy_frame)
@@ -61,10 +72,7 @@ class HomePage(QWidget):
         self.policy_widget = PolicyDetailsWidget()
         policy_layout.addWidget(self.policy_widget)
 
-        self.main_layout.addWidget(policy_frame)
-
-
-        # ================= TABLE =================
+        # ---- TABLE ----
         self.table = QTableWidget(0, 3)
         self.table.setObjectName("dataTable")
 
@@ -83,10 +91,13 @@ class HomePage(QWidget):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
-        # ================= TREND CHART =================
+        # Add to LEFT column
+        left_layout.addWidget(policy_frame)
+        left_layout.addWidget(self.table)
+
+        # ===== RIGHT SIDE (TREND CHART) =====
         self.trend_chart = TrendChart()
 
-        # Wrap chart in card (better UI)
         chart_card = QFrame()
         chart_card.setObjectName("card")
 
@@ -102,17 +113,14 @@ class HomePage(QWidget):
 
         chart_card.setLayout(chart_layout)
 
-        # ================= TABLE + CHART SIDE BY SIDE =================
-        bottom_layout = QHBoxLayout()
-        bottom_layout.setSpacing(15)
+        # Make chart fill full height
+        chart_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        # Table (left)
-        bottom_layout.addWidget(self.table, stretch=2)
+        # Add to main layout
+        content_layout.addLayout(left_layout, 2)
+        content_layout.addWidget(chart_card, 3)
 
-        # Chart (right)
-        bottom_layout.addWidget(chart_card, stretch=3)
-
-        self.main_layout.addLayout(bottom_layout)
+        self.main_layout.addLayout(content_layout)
 
         self.setLayout(self.main_layout)
 
@@ -141,10 +149,7 @@ class HomePage(QWidget):
         return {"frame": frame, "label": value_label}
 
     # ================= UPDATE DATA =================
-   # ...existing code...
-
     def update_summary(self, dependencies, vulnerabilities, full_history, current_project_name):
-        # ===== COUNTS =====
 
         dep_count = len(dependencies)
         vuln_count = len(vulnerabilities)
@@ -170,7 +175,6 @@ class HomePage(QWidget):
         else:
             color = "#94a3b8"
 
-        # Update stats
         self.dep_value["label"].setText(str(dep_count))
         self.vuln_value["label"].setText(str(vuln_count))
         self.scan_value["label"].setText(str(total_scans))
@@ -178,7 +182,7 @@ class HomePage(QWidget):
         self.risk_value["label"].setText(risk)
         self.risk_value["label"].setStyleSheet(f"color: {color};")
 
-        # Update table
+        # ===== TABLE =====
         self.table.setRowCount(0)
 
         for row, scan in enumerate(project_scans):
@@ -195,7 +199,7 @@ class HomePage(QWidget):
             self.table.setItem(row, 1, deps_item)
             self.table.setItem(row, 2, vulns_item)
 
-        # ===== POLICY STATUS =====
+        # ===== POLICY =====
         if latest_scan and "policy_enforcement" in latest_scan:
             self.policy_widget.update_policy_info(latest_scan["policy_enforcement"])
         else:
@@ -204,14 +208,9 @@ class HomePage(QWidget):
                 "reason": "Run a scan to evaluate security policies."
             })
 
-        # Update chart
+        # ===== TREND =====
         self.trend_chart.update_chart(project_scans)
 
     # ================= FILE PICKER =================
     def open_folder_dialog(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Project Folder")
-
-        if folder:
-            parent = self.parent()
-            if hasattr(parent, "upload_and_scan"):
-                parent.upload_and_scan()  
+        self.upload_requested.emit()

@@ -55,20 +55,32 @@ def create_tables():
 
     # Run migrations for existing databases
     try:
+        # ---- scan_results migration ----
         cursor.execute("PRAGMA table_info(scan_results)")
         columns = {row[1] for row in cursor.fetchall()}
-        
+
         if 'policy_status' not in columns:
             cursor.execute("""
                 ALTER TABLE scan_results ADD COLUMN policy_status TEXT DEFAULT 'pending-scan'
             """)
             print("✅ Added policy_status column")
-        
+
         if 'policy_enforcement_data' not in columns:
             cursor.execute("""
                 ALTER TABLE scan_results ADD COLUMN policy_enforcement_data TEXT
             """)
             print("✅ Added policy_enforcement_data column")
+
+        # ---- dependencies migration ----
+        cursor.execute("PRAGMA table_info(dependencies)")
+        dep_columns = {row[1] for row in cursor.fetchall()}
+
+        if 'risk' not in dep_columns:
+            cursor.execute("""
+                ALTER TABLE dependencies ADD COLUMN risk TEXT DEFAULT 'UNKNOWN'
+            """)
+            print("✅ Added risk column to dependencies")
+
     except sqlite3.OperationalError as e:
         print(f"Migration note: {e}")
 

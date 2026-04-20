@@ -23,7 +23,7 @@ class DependencyTable(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels([
-            "Name", "Version", "Risk", "Vendor"
+            "Name", "Version", "Risk", "Source"
         ])
 
         # ===== UI IMPROVEMENTS =====
@@ -98,7 +98,7 @@ class DependencyTable(QWidget):
 
             self.table.setItem(row, 2, risk_item)
 
-            # ===== Vendor =====
-            vendor = dep.get("vendor") or dep.get("ecosystem", "Unknown")
-            vendor_item = QTableWidgetItem(vendor)
-            self.table.setItem(row, 3, vendor_item)
+            # ===== Source =====
+            Source = dep.get("source") or dep.get("ecosystem", "Unknown")
+            Source_item = QTableWidgetItem(Source)
+            self.table.setItem(row, 3, Source_item)

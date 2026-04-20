@@ -29,10 +29,22 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
     total_vulnerabilities = 0
     highest_cvss = 0
 
+    # ✅ REMOVE DUPLICATES FIRST
+    seen = set()
+    unique_dependencies = []
+
+    for dep in dependencies:
+        key = (dep.get("name"), dep.get("version"))
+        if key not in seen:
+            seen.add(key)
+            unique_dependencies.append(dep)
+
+    dependencies = unique_dependencies
+
+    # Now recalculate total AFTER deduplication
     total_deps = len(dependencies)
 
     all_vulnerabilities = []
-
     # ==============================
     # PHASE 1: Vulnerability Processing (0% → 70%)
     # ==============================
@@ -47,12 +59,35 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
             dep.get("ecosystem")
         )
 
+        # ✅ FIX 1: Deduplicate vulnerabilities per dependency
+        unique_vulns = {}
+        for vuln in vulnerabilities:
+            cve = vuln.get("cve_id") or vuln.get("osv_id")
+
+            if cve not in unique_vulns:
+                unique_vulns[cve] = vuln
+            else:
+                # Keep highest CVSS
+                existing = unique_vulns[cve]
+                if (vuln.get("cvss_score") or 0) > (existing.get("cvss_score") or 0):
+                    unique_vulns[cve] = vuln
+
+        vulnerabilities = list(unique_vulns.values())
+
         dep["__vulns__"] = vulnerabilities  # store for later DB insert
 
         for vuln in vulnerabilities:
-            total_vulnerabilities += 1
+            if vuln.get("severity") == "MODERATE":
+                vuln["severity"] = "MEDIUM"
 
-            all_vulnerabilities.append(vuln)
+        _, dep_risk = calculate_risk(vulnerabilities)
+        dep["risk"] = dep_risk
+
+        # ✅ FIX 2: Count only unique vulnerabilities
+        total_vulnerabilities += len(vulnerabilities)
+
+        # ✅ FIX 3: Clean aggregation (no duplicates)
+        all_vulnerabilities.extend(vulnerabilities)
 
         processed += 1
 
@@ -70,19 +105,28 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
 
         # Insert dependency
         cursor.execute("""
-            INSERT INTO dependencies (project_id, name, version, ecosystem)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO dependencies (project_id, name, version, ecosystem, risk)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             project_id,
             dep.get("name"),
             dep.get("version"),
-            dep.get("ecosystem")
+            dep.get("ecosystem"),
+            dep.get("risk", "UNKNOWN")
         ))
 
         dependency_id = cursor.lastrowid
 
-        # Insert vulnerabilities
+        # ✅ FIX 4: Prevent duplicate insert into DB
+        seen_cves = set()
+
         for vuln in dep.get("__vulns__", []):
+            cve = vuln.get("cve_id") or vuln.get("osv_id")
+
+            if cve in seen_cves:
+                continue
+
+            seen_cves.add(cve)
 
             cursor.execute("""
                 INSERT INTO vulnerabilities
@@ -105,7 +149,6 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
             percent = 70 + int((processed / max(1, total_deps)) * 25)
             progress_callback(percent)
 
-
     # ==============================
     # FINAL STEP (95% → 100%)
     # ==============================
@@ -122,14 +165,13 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
         "status": status,
         "critical_count": sum(1 for v in all_vulnerabilities if v.get("severity") == "CRITICAL"),
         "high_count": sum(1 for v in all_vulnerabilities if v.get("severity") == "HIGH"),
-        "outdated_count": 0  # Can be enhanced later
+        "outdated_count": 0
     }
 
     # Apply policy enforcement
     policy_config = get_default_policy_config()
     scan_data = apply_policy_to_scan(scan_data, policy_config)
 
-    # Extract policy info
     policy_status = scan_data.get('policy_status', 'approved')
     policy_enforcement_data = json.dumps(scan_data.get('policy_enforcement', {}))
 
@@ -147,11 +189,9 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
         policy_enforcement_data
     ))
 
-
     conn.commit()
     conn.close()
 
-    # ✅ Final 100%
     if progress_callback:
         progress_callback(100)
 
@@ -176,7 +216,7 @@ def get_dependencies(project_id=None):
             d.name,
             d.version,
             d.ecosystem,
-            sr.status
+            d.risk
         FROM dependencies d
         JOIN scan_results sr ON d.project_id = sr.project_id
     """
@@ -198,7 +238,7 @@ def get_dependencies(project_id=None):
             "name": row["name"],
             "version": row["version"],
             "ecosystem": row["ecosystem"],
-            "risk": row["status"] or "UNKNOWN"
+            "risk": row["risk"] or "UNKNOWN"
         }
         for row in rows
     ]

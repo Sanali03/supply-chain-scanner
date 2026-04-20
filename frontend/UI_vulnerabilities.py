@@ -44,7 +44,11 @@ class VulnerabilityTable(QWidget):
 
         # Stretch columns
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # CVE ID
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Severity
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Package
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)           # Description
 
         # Better readability
         self.table.setFont(QFont("Segoe UI", 11))
