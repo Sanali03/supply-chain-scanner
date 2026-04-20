@@ -1,4 +1,5 @@
 from backend.database import get_connection
+import sqlite3
 
 def create_tables():
     conn = get_connection()
@@ -46,9 +47,30 @@ def create_tables():
         total_vulnerabilities INTEGER,
         risk_score REAL,
         status TEXT,
+        policy_status TEXT,
+        policy_enforcement_data TEXT,
         FOREIGN KEY (project_id) REFERENCES projects (id)
     )
     """)
+
+    # Run migrations for existing databases
+    try:
+        cursor.execute("PRAGMA table_info(scan_results)")
+        columns = {row[1] for row in cursor.fetchall()}
+        
+        if 'policy_status' not in columns:
+            cursor.execute("""
+                ALTER TABLE scan_results ADD COLUMN policy_status TEXT DEFAULT 'pending-scan'
+            """)
+            print("✅ Added policy_status column")
+        
+        if 'policy_enforcement_data' not in columns:
+            cursor.execute("""
+                ALTER TABLE scan_results ADD COLUMN policy_enforcement_data TEXT
+            """)
+            print("✅ Added policy_enforcement_data column")
+    except sqlite3.OperationalError as e:
+        print(f"Migration note: {e}")
 
     conn.commit()
     conn.close()

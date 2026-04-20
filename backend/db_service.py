@@ -1,7 +1,10 @@
 from datetime import datetime
+import json
 from backend.database import get_connection
 from backend.osv_service import check_vulnerability
 from backend.risk_calculator import calculate_risk
+from backend.policy_engine import apply_policy_to_scan
+from backend.policy_config import get_default_policy_config
 
 
 # ==============================
@@ -102,6 +105,7 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
             percent = 70 + int((processed / max(1, total_deps)) * 25)
             progress_callback(percent)
 
+
     # ==============================
     # FINAL STEP (95% → 100%)
     # ==============================
@@ -109,17 +113,40 @@ def save_project_and_dependencies(project_name, project_path, dependencies, prog
     # Calculate risk
     risk_score, status = calculate_risk(all_vulnerabilities)
 
+    # Prepare scan data for policy evaluation
+    scan_data = {
+        "project_name": project_name,
+        "total_dependencies": total_deps,
+        "total_vulnerabilities": total_vulnerabilities,
+        "risk_score": risk_score,
+        "status": status,
+        "critical_count": sum(1 for v in all_vulnerabilities if v.get("severity") == "CRITICAL"),
+        "high_count": sum(1 for v in all_vulnerabilities if v.get("severity") == "HIGH"),
+        "outdated_count": 0  # Can be enhanced later
+    }
+
+    # Apply policy enforcement
+    policy_config = get_default_policy_config()
+    scan_data = apply_policy_to_scan(scan_data, policy_config)
+
+    # Extract policy info
+    policy_status = scan_data.get('policy_status', 'approved')
+    policy_enforcement_data = json.dumps(scan_data.get('policy_enforcement', {}))
+
     cursor.execute("""
         INSERT INTO scan_results
-        (project_id, total_dependencies, total_vulnerabilities, risk_score, status)
-        VALUES (?, ?, ?, ?, ?)
+        (project_id, total_dependencies, total_vulnerabilities, risk_score, status, policy_status, policy_enforcement_data)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (
         project_id,
         total_deps,
         total_vulnerabilities,
         risk_score,
-        status
+        status,
+        policy_status,
+        policy_enforcement_data
     ))
+
 
     conn.commit()
     conn.close()
@@ -237,7 +264,9 @@ def get_scan_history():
             sr.total_dependencies,
             sr.total_vulnerabilities,
             sr.risk_score,
-            sr.status
+            sr.status,
+            sr.policy_status,
+            sr.policy_enforcement_data
         FROM projects p
         JOIN scan_results sr ON p.id = sr.project_id
         ORDER BY p.id DESC
@@ -254,7 +283,8 @@ def get_scan_history():
             "deps": row["total_dependencies"],
             "vulns": row["total_vulnerabilities"],
             "risk_score": row["risk_score"],
-            "status": row["status"]
+            "status": row["status"],
+            "policy_enforcement": json.loads(row["policy_enforcement_data"]) if row["policy_enforcement_data"] else {}
         }
         for row in rows
     ]

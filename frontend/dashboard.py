@@ -28,9 +28,8 @@ from backend.db_service import (
     get_scan_history,
     get_project_path,
     delete_project   
-)
-
-
+) 
+from backend.init_db import create_tables
 # ============================
 # THREAD WORKER
 # ============================
@@ -63,7 +62,9 @@ class ScanWorker(QThread):
 class Dashboard(QMainWindow):
     def __init__(self):
         super().__init__()
-
+        # Initialize database and migrations
+        create_tables()
+        
         self.setWindowTitle("Supply Chain Scanner Dashboard")
         self.resize(1400, 800)
 
