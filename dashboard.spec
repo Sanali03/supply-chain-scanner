@@ -1,19 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
-
-datas = [('backend', 'backend'), ('assets', 'assets'), ('style.qss', '.')]
-binaries = [('backend/syft.exe', 'backend')]
-hiddenimports = ['sqlite3', '_sqlite3']
-tmp_ret = collect_all('requests')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['frontend\\dashboard.py'],
     pathex=[],
-    binaries=binaries,
-    datas=datas,
-    hiddenimports=hiddenimports,
+    binaries=[('backend\\syft.exe', 'backend')],
+    datas=[('backend', 'backend'), ('assets', 'assets'), ('style.qss', '.')],
+    hiddenimports=['sqlite3', 'requests'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

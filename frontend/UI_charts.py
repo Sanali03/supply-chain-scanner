@@ -81,7 +81,25 @@ class RiskChart(QWidget):
                 colors.append(color_map[k])
 
         if not sizes:
-            self.ax1.text(0.5, 0.5, "No Data", ha="center", color="white")
+            # Show full LOW risk donut instead of "No Data"
+            self.ax1.pie(
+                [1],
+                labels=["No Vulnerabilities"],
+                colors=["#22c55e"],
+                autopct=lambda p: "100%",  
+                startangle=90,
+                textprops={"color": "white"}
+)
+
+            centre = plt.Circle((0, 0), 0.6, fc="#1e293b")
+            self.ax1.add_artist(centre)
+
+            self.ax1.set_title("Risk Distribution (Safe)", color="white")
+
+            self.fig1.patch.set_facecolor("#1e293b")
+            self.ax1.set_facecolor("#1e293b")
+
+            self.canvas1.draw()
             return
 
         wedges, texts, autotexts = self.ax1.pie(
@@ -121,7 +139,24 @@ class RiskChart(QWidget):
         top = package_count.most_common(5)
 
         if not top:
-            self.ax2.text(0.5, 0.5, "No Data", ha="center", va="center", color="white")
+            self.ax2.text(
+                0.5, 0.5,
+                "No vulnerable packages",
+                ha="center",
+                va="center",
+                color="#22c55e",
+                fontsize=12
+            )
+
+            self.ax2.set_title("Top Vulnerable Packages", color="white")
+
+            self.ax2.set_xticks([])
+            self.ax2.set_yticks([])
+
+            self.fig2.patch.set_facecolor("#1e293b")
+            self.ax2.set_facecolor("#1e293b")
+
+            self.canvas2.draw()
             return
 
         names = [x[0] for x in top]
