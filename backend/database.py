@@ -1,7 +1,9 @@
 import sqlite3
 import os
+import sys
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
+
 DATABASE_NAME = os.path.join(BASE_DIR, "scanner.db")
 
 def get_connection():

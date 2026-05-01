@@ -19,6 +19,8 @@ class ComparisonOperator(str, Enum):
     IN = "in"
     GT = "gt"
     LT = "lt"
+    GTE = "gte"
+    LTE = "lte"
 
 @dataclass
 class PolicyCondition:

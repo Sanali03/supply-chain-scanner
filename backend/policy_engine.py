@@ -27,42 +27,54 @@ def matches_condition(application: Dict[str, Any], condition: PolicyCondition) -
         return isinstance(value, (int, float)) and value > condition.value
     elif condition.operator == ComparisonOperator.LT:
         return isinstance(value, (int, float)) and value < condition.value
+    elif condition.operator == ComparisonOperator.GTE:
+        return isinstance(value, (int, float)) and value >= condition.value
+    elif condition.operator == ComparisonOperator.LTE:
+        return isinstance(value, (int, float)) and value <= condition.value
     
     return False
 
 def evaluate_policy(application: Dict[str, Any], config: PolicyConfig) -> PolicyEvaluation:
-    """Evaluate application against policy rules."""
-    
-    matched_rule = None
+    """Evaluate application against ALL policy rules with priority."""
+
+    matched_rules = []
+
     for rule in config.rules:
         if rule.condition is None or matches_condition(application, rule.condition):
-            matched_rule = rule
-            break
-    
-    if matched_rule is None:
+            matched_rules.append(rule)
+
+    # No rules matched
+    if not matched_rules:
         return PolicyEvaluation(
             status=ApprovalDecision.APPROVED,
             message="No policy rules matched. Application approved by default."
         )
-    
-    if matched_rule.critical and matched_rule.action == PolicyAction.REJECT:
-        return PolicyEvaluation(
-            status=ApprovalDecision.BLOCKED,
-            matched_rule=matched_rule,
-            message=f'Blocked by critical policy rule "{matched_rule.name}".'
-        )
-    
-    if matched_rule.action == PolicyAction.REVIEW:
-        return PolicyEvaluation(
-            status=ApprovalDecision.PENDING,
-            matched_rule=matched_rule,
-            message=f'Requires conditional approval due to policy rule "{matched_rule.name}".'
-        )
-    
+
+    # PRIORITY LOGIC
+
+    # 1. Critical REJECT → BLOCKED
+    for rule in matched_rules:
+        if rule.critical and rule.action == PolicyAction.REJECT:
+            return PolicyEvaluation(
+                status=ApprovalDecision.BLOCKED,
+                matched_rule=rule,
+                message=f'Blocked by critical policy rule "{rule.name}".'
+            )
+
+    # 2. Any REVIEW → PENDING
+    for rule in matched_rules:
+        if rule.action == PolicyAction.REVIEW:
+            return PolicyEvaluation(
+                status=ApprovalDecision.PENDING,
+                matched_rule=rule,
+                message=f'Requires review due to policy rule "{rule.name}".'
+            )
+
+    # 3. Otherwise → APPROVED
     return PolicyEvaluation(
         status=ApprovalDecision.APPROVED,
-        matched_rule=matched_rule,
-        message=f'Approved by policy rule "{matched_rule.name}".'
+        matched_rule=matched_rules[0],
+        message=f'Approved by policy rules.'
     )
 
 def apply_policy_to_scan(scan_data: Dict[str, Any], config: PolicyConfig) -> Dict[str, Any]:

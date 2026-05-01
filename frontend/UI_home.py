@@ -1,14 +1,13 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFileDialog, QFrame,
-    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
+    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QMessageBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from UI_policy_status import PolicyDetailsWidget
 from UI_trend_chart import TrendChart
 from PyQt6.QtCore import Qt, pyqtSignal
-
 
 class HomePage(QWidget):
     
@@ -162,7 +161,7 @@ class HomePage(QWidget):
 
         latest_scan = project_scans[0] if project_scans else {}
 
-        risk = latest_scan.get("status", "UNKNOWN").upper()
+        risk = (latest_scan.get("status") or "UNKNOWN").upper()
 
         if risk == "CRITICAL":
             color = "#dc2626"
@@ -201,12 +200,18 @@ class HomePage(QWidget):
 
         # ===== POLICY =====
         if latest_scan and "policy_enforcement" in latest_scan:
-            self.policy_widget.update_policy_info(latest_scan["policy_enforcement"])
+            self.policy_widget.update_policy_info(
+                latest_scan["policy_enforcement"],
+                risk 
+            )
         else:
-            self.policy_widget.update_policy_info({
-                "status": "pending-scan",
-                "reason": "Run a scan to evaluate security policies."
-            })
+            self.policy_widget.update_policy_info(
+                {
+                    "status": "pending-scan",
+                    "reason": "Run a scan to evaluate security policies."
+                },
+                risk
+            )
 
         # ===== TREND =====
         self.trend_chart.update_chart(project_scans)

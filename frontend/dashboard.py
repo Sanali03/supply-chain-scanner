@@ -1,12 +1,17 @@
 import sys
 import os
 
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from PyQt6.QtWidgets import (
     QMainWindow, QTabWidget, QApplication, QWidget,
     QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
-    QFileDialog, QComboBox, QMessageBox   # ✅ NEW
+    QFileDialog, QComboBox, QMessageBox  
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QMovie
@@ -35,7 +40,7 @@ from backend.init_db import create_tables
 # ============================
 
 class ScanWorker(QThread):
-    finished = pyqtSignal()
+    finished = pyqtSignal(bool, str)
     progress = pyqtSignal(int)
 
     def __init__(self, project_name, project_path):
@@ -45,14 +50,20 @@ class ScanWorker(QThread):
 
     def run(self):
         try:
-            run_scan(
+            result = run_scan(
                 self.project_name,
                 self.project_path,
                 progress_callback=self.progress.emit
             )
+
+            if result:
+                self.finished.emit(True, "")
+            else:
+                self.finished.emit(False, "Scan failed internally")
+        
         except Exception as e:
             print(f" Scan error: {e}")
-        self.finished.emit()
+            self.finished.emit(False, str(e))
 
 
 # ============================
@@ -126,7 +137,7 @@ class Dashboard(QMainWindow):
         sidebar_layout.addStretch()
 
         # DELETE BUTTON (BOTTOM)
-        delete_btn = QPushButton("🗑 Delete Project")
+        delete_btn = QPushButton("Delete Project")
         delete_btn.setObjectName("primaryButton")
         delete_btn.clicked.connect(self.delete_selected_project)
         sidebar_layout.addWidget(delete_btn)
@@ -145,9 +156,12 @@ class Dashboard(QMainWindow):
         self.loader = QLabel()
         self.loader.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        spinner_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "assets", "spinner.gif")
-        )
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+        spinner_path = os.path.join(base_path, "assets", "spinner.gif")
 
         self.movie = QMovie(spinner_path)
 
@@ -296,6 +310,13 @@ class Dashboard(QMainWindow):
             vulnerabilities = get_vulnerabilities(self.current_project_id)
             history = get_scan_history()
 
+            current_scan = next(
+                (h for h in history if h["id"] == self.current_project_id),
+                None
+            )
+
+            policy_data = current_scan.get("policy_enforcement", {}) if current_scan else {}
+
             current_project_name = self.project_selector.currentText().split(" (")[0]
 
             self.dep_tab.update_data(dependencies)
@@ -346,10 +367,16 @@ class Dashboard(QMainWindow):
     def update_progress(self, value):
         self.progress_label.setText(f"Scanning... {value}%")
 
-    def on_scan_complete(self):
+    def on_scan_complete(self, success, error_msg):
         self.movie.stop()
         self.loader_container.hide()
         self.tabs.show()
+
+        if not success:
+            QMessageBox.critical(self, "Scan Error", error_msg or "SBOM generation failed")
+            self.load_projects()
+            return
+        
         self.load_projects()
 
 
@@ -358,11 +385,19 @@ class Dashboard(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
+    #Handle path for both dev + EXE
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    style_path = os.path.join(base_path, "style.qss")
+
     try:
-        with open("style.qss", "r") as f:
+        with open(style_path, "r") as f:
             app.setStyleSheet(f.read())
-    except:
-        print(" style.qss not found")
+    except Exception as e:
+        print(f"style.qss not found: {e}")
 
     window = Dashboard()
     window.show()

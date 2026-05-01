@@ -12,11 +12,11 @@ def get_default_policy_config() -> PolicyConfig:
 
         # ================= CRITICAL RULE =================
         PolicyRule(
-            id="critical_vuln_block",
-            name="Block Critical Vulnerabilities",
-            description="Automatically block projects containing any critical vulnerabilities",
+            id="critical_vuln_notice",
+            name="Critical Vulnerabilities Detected",
+            description="Project contains critical vulnerabilities - requires attention",
             critical=True,
-            action=PolicyAction.REJECT,
+            action=PolicyAction.REVIEW,  
             condition=PolicyCondition(
                 field="critical_count",
                 operator=ComparisonOperator.GT,
@@ -34,7 +34,7 @@ def get_default_policy_config() -> PolicyConfig:
             condition=PolicyCondition(
                 field="high_count",
                 operator=ComparisonOperator.GT,
-                value=0   # 🔥 FIXED (was 2)
+                value=0  
             )
         ),
 

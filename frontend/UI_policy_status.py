@@ -24,10 +24,10 @@ class PolicyStatusBadge(QWidget):
     def set_status(self, status: str):
         """Update badge based on policy status."""
         status_map = {
-            "approved": ("✅ Approved", "#28a745", "white"),
-            "pending-review": ("⚠️ Review", "#ffc107", "black"),
-            "blocked": ("🚫 Blocked", "#dc3545", "white"),
-            "pending-scan": ("⏳ Pending", "#6c757d", "white"),
+            "approved": ("Secure", "#28a745", "white"),
+            "critical-alert": ("Critical Alert", "#ffc107", "black"),
+            "blocked": ("Blocked", "#dc3545", "white"),
+            "pending-scan": ("Pending", "#6c757d", "white"),
         }
         
         label_text, bg_color, text_color = status_map.get(
@@ -64,16 +64,20 @@ class PolicyDetailsWidget(QWidget):
         
         self.reason_label = QLabel("")
         self.reason_label.setWordWrap(True)
-        self.reason_label.setStyleSheet("color: #555; font-size: 10px; padding: 5px;")
+        self.reason_label.setStyleSheet("color: #fff; font-size: 12px; padding: 5px;")
         layout.addWidget(self.reason_label)
         
         layout.addStretch()
     
-    def update_policy_info(self, policy_enforcement: dict):
-        """Update widget with policy enforcement data."""
+    def update_policy_info(self, policy_enforcement: dict, risk: str = None):
         status = policy_enforcement.get("status", "pending-scan")
         reason = policy_enforcement.get("reason", "")
-        
+
+        if risk == "CRITICAL":
+            self.status_badge.set_status("critical-alert")
+            self.reason_label.setText("Critical vulnerabilities detected! Immediate action required.")
+            return
+
         self.status_badge.set_status(status)
-        self.reason_label.setText(reason) 
+        self.reason_label.setText(reason)
         
