@@ -86,3 +86,15 @@ The application provides visual representations of:
 The system maintains previous scan results, allowing projects to be rescanned and historical results to be tracked.
 
 <img width="940" height="495" alt="image" src="https://github.com/user-attachments/assets/68a9b45e-7d57-4c87-aa53-d3351ccd374e" />
+
+
+<img width="909" height="481" alt="image" src="https://github.com/user-attachments/assets/5eed3df0-b8fa-4e5c-944f-05db2d422f55" />
+
+
+<img width="942" height="497" alt="image" src="https://github.com/user-attachments/assets/a94c3c25-cc20-4dcf-aec7-7d207ae65269" />
+
+
+<img width="918" height="481" alt="image" src="https://github.com/user-attachments/assets/976aaa19-b9cc-4ae0-80ef-bae623d28a9d" />
+
+
+<img width="940" height="493" alt="image" src="https://github.com/user-attachments/assets/6be3213e-b124-4ffe-b349-e0dd9b89abb1" />
