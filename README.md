@@ -84,3 +84,5 @@ The application provides visual representations of:
 ### 6. Scan History
 
 The system maintains previous scan results, allowing projects to be rescanned and historical results to be tracked.
+
+<img width="940" height="495" alt="image" src="https://github.com/user-attachments/assets/68a9b45e-7d57-4c87-aa53-d3351ccd374e" />
