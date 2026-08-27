@@ -15,7 +15,7 @@ This project provides an integrated approach to software supply chain security b
 - Policy-based security evaluation
 - Security visualization and reporting
 
-The system aims to provide better visibility into software dependencies and support proactive security decision-making within the Software Development Life Cycle (SDLC). :contentReference[oaicite:1]{index=1}
+The system aims to provide better visibility into software dependencies and support proactive security decision-making within the Software Development Life Cycle (SDLC).
 
 ## 🎯 Objectives
 
